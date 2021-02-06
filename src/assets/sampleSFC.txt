@@ -29,6 +29,9 @@ export default Vue.extend({
       lastName: 'lastName',
     }
   },
+  created(){
+    console.log('created')
+  },
   mounted() {
     this.strData = 'mounted'
   },

@@ -27,7 +27,6 @@ export default defineComponent({
   setup: () => {
     const input = ref(text)
     const parsed = ref('aaa')
-
     watch(
       input,
       () => {

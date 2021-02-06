@@ -18,6 +18,31 @@ const convertScript = (sourceFile: ts.SourceFile) => {
   return result.transformed.map((src) => printer.printFile(src)).join('')
 }
 
+const replaceContext = (str: string) => {
+  return str
+    .replace(/this\.\$/g, 'ctx.root.$')
+    .replace(/this\.([\w-]+)/g, `$1.value`)
+}
+
+const getNodeByKind = (node: ts.Node, kind: ts.SyntaxKind): ts.Node[] => {
+  const list: ts.Node[] = []
+  const search = (node: ts.Node) => {
+    if (node.kind === kind) {
+      list.push(node)
+    }
+    ts.forEachChild(node, (child) => {
+      search(child)
+    })
+  }
+  search(node)
+  return list
+}
+
+type ConvertedExpression = {
+  expression: string
+  name?: string
+}
+
 const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
   return (sourceFile) => {
     let inExport = false
@@ -53,16 +78,15 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
             // export default Vue.extend({ })
             inExportObject = true
 
-            // console.log(ast.statements)
-
-            const lifeCycles: { name: string; block: ts.Block }[] = []
             const otherProps: ts.ObjectLiteralElementLike[] = []
-
             const setupProps = []
+
             for (const prop of node.properties) {
               const name = prop.name?.getText(sourceFile)
               switch (name) {
                 case 'data':
+                  // console.log(getObjectLiteralVisitor(prop))
+                  setupProps.unshift(...dataConverter(prop, sourceFile))
                   break
                 case 'computed':
                   setupProps.push(...computedConverter(prop, sourceFile))
@@ -83,10 +107,7 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
                 case 'beforeDetroy':
                 case 'activated':
                 case 'deactivated':
-                  if (ts.isMethodDeclaration(prop)) {
-                    prop.body?.getText(sourceFile)
-                    lifeCycles.push({ name, block: prop.body })
-                  }
+                  setupProps.push(...lifeCycleConverter(name, prop, sourceFile))
                   break
                 default:
                   otherProps.push(prop)
@@ -97,10 +118,17 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
             }
             // return setup
 
-            const setupStatements = setupProps
+            const returnStatement = `return {${setupProps
+              .map(({ name }) => name)
+              .join(',')}}`
+
+            const setupStatements = [
+              ...setupProps,
+              { expression: returnStatement },
+            ]
               .map(
-                (item) =>
-                  ts.createSourceFile('', item, ts.ScriptTarget.Latest)
+                ({ expression }) =>
+                  ts.createSourceFile('', expression, ts.ScriptTarget.Latest)
                     .statements
               )
               .flat()
@@ -151,11 +179,61 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
 
 const storePath = `ctx.root.$store`
 
-export const computedConverter = (node: ts.Node, sourceFile: ts.SourceFile) => {
+const lifeCycleConverter = (
+  lifeCycle: string,
+  node: ts.Node,
+  sourceFile: ts.SourceFile
+): ConvertedExpression[] => {
+  if (!ts.isMethodDeclaration(node)) return []
+
+  const apiMap = {
+    beforeMount: 'onBeforeMount',
+    mounted: 'onMounted',
+    beforeUpdate: 'onBeforeUpdate',
+    updated: 'onUpdated',
+    beforeUnmount: 'onBeforeUnmount',
+    unmounted: 'onUnmounted',
+    errorCaptured: 'onErrorCaptured',
+    renderTracked: 'onRenderTracked',
+    renderTriggered: 'onRenderTriggered',
+  }
+  const setupLifeCyle = apiMap[lifeCycle]
+  const body = replaceContext(node.body?.getText(sourceFile) || '{}')
+  if (setupLifeCyle != null) {
+    return [{ expression: `${setupLifeCyle}(()=>${body})` }]
+  }
+
+  return [{ expression: `(()=>${body})()` }]
+}
+
+const getInitializerProps = (node: ts.Node): ts.ObjectLiteralElementLike[] => {
   if (!ts.isPropertyAssignment(node)) return []
   if (!ts.isObjectLiteralExpression(node.initializer)) return []
+  return [...node.initializer.properties]
+}
 
-  const props = node.initializer.properties
+const dataConverter = (
+  node: ts.Node,
+  sourceFile: ts.SourceFile
+): ConvertedExpression[] => {
+  const [objNode] = getNodeByKind(node, ts.SyntaxKind.ObjectLiteralExpression)
+
+  if (!(objNode && ts.isObjectLiteralExpression(objNode))) return []
+  return objNode.properties
+    .map((prop) => {
+      if (!ts.isPropertyAssignment(prop)) return
+      const name = prop.name.getText(sourceFile)
+      const text = prop.initializer.getText(sourceFile)
+      return { expression: `const ${name} = ref(${text})`, name }
+    })
+    .filter((item): item is NonNullable<typeof item> => item != null)
+}
+
+const computedConverter = (
+  node: ts.Node,
+  sourceFile: ts.SourceFile
+): ConvertedExpression[] => {
+  return getInitializerProps(node)
     .map((prop) => {
       if (ts.isSpreadAssignment(prop)) {
         // mapGetters, mapState, mapActions
@@ -174,29 +252,37 @@ export const computedConverter = (node: ts.Node, sourceFile: ts.SourceFile) => {
         switch (mapName) {
           case 'mapState':
             return names.map(({ text: name }) => {
-              return `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`
+              return {
+                expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
+                name,
+              }
             })
           case 'mapGetters':
             return names.map(({ text: name }) => {
-              return `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`
+              return {
+                expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
+                name,
+              }
             })
           case 'mapActions':
             return names.map(({ text: name }) => {
-              return `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`
+              return {
+                expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
+                name,
+              }
             })
         }
         return null
       } else if (ts.isMethodDeclaration(prop)) {
-        const { name, body, type } = prop
+        const { name: propName, body, type } = prop
         const typeName = type ? `:${type.getText(sourceFile)}` : ''
-        const block = body?.getText(sourceFile) || '{}'
+        const block = replaceContext(body?.getText(sourceFile) || '{}')
+        const name = propName.getText(sourceFile)
 
-        return `const ${name.getText(sourceFile)} = ()${typeName} => ${block}`
+        return { expression: `const ${name} = ()${typeName} => ${block}`, name }
       } else if (ts.isPropertyAssignment(prop)) {
       }
     })
     .flat()
     .filter((item): item is NonNullable<typeof item> => item != null)
-
-  return props
 }
