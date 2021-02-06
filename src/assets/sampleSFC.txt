@@ -9,8 +9,6 @@ import Vue from 'vue'
 import { mapState, mapGetters, mapActions } from 'vuex'
 import Comp1 from '@/components/Comp1.vue'
 
-export const a = { b: 2 }
-
 export default Vue.extend({
   components: {
     Comp1,
@@ -35,9 +33,9 @@ export default Vue.extend({
     this.strData = 'mounted'
   },
   computed: {
-    ...mapGetters('module1', ['getter1', 'getter2']),
-    ...mapState('module2', ['state1', 'state2']),
-    ...mapActions('module3', ['action1', 'action2']),
+    ...mapGetters('module1', ['getter1']),
+    ...mapState('module2', ['state1']),
+    ...mapActions('module3', ['action1']),
 
     doubledNum(): number {
       return this.numData * 2
