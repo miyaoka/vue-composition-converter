@@ -104,9 +104,11 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
                 case 'mounted':
                 case 'beforeUpdate':
                 case 'updated':
-                case 'beforeDetroy':
-                case 'activated':
-                case 'deactivated':
+                case 'beforeDestroy':
+                case 'destroyed':
+                case 'errorCaptured':
+                case 'renderTracked':
+                case 'renderTriggered':
                   setupProps.push(...lifeCycleConverter(name, prop, sourceFile))
                   break
                 default:
@@ -187,12 +189,14 @@ const lifeCycleConverter = (
   if (!ts.isMethodDeclaration(node)) return []
 
   const apiMap = {
+    beforeCreate: null,
+    created: null,
     beforeMount: 'onBeforeMount',
     mounted: 'onMounted',
     beforeUpdate: 'onBeforeUpdate',
     updated: 'onUpdated',
-    beforeUnmount: 'onBeforeUnmount',
-    unmounted: 'onUnmounted',
+    beforeDestroy: 'onBeforeUnmount',
+    destroyed: 'onUnmounted',
     errorCaptured: 'onErrorCaptured',
     renderTracked: 'onRenderTracked',
     renderTriggered: 'onRenderTriggered',
