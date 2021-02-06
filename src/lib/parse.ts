@@ -197,6 +197,7 @@ const lifeCycleConverter = (
     renderTracked: 'onRenderTracked',
     renderTriggered: 'onRenderTriggered',
   }
+  // @ts-expect-error
   const setupLifeCyle = apiMap[lifeCycle]
   const body = replaceContext(node.body?.getText(sourceFile) || '{}')
   if (setupLifeCyle != null) {
