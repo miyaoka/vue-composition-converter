@@ -1,0 +1,90 @@
+<template>
+  <div class="sampleClass">
+    {{ strData }}
+  </div>
+</template>
+
+<script lang="ts">
+import Vue from 'vue'
+import { mapState, mapGetters, mapActions } from 'vuex'
+import Comp1 from '@/components/Comp1.vue'
+
+export const a = { b: 2 }
+
+export default Vue.extend({
+  components: {
+    Comp1,
+  },
+  props: {
+    prop1: {
+      type: Object,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      strData: 'str',
+      numData: 10,
+      boolData: true,
+      objData: { a: 1 },
+      firstName: 'firstName',
+      lastName: 'lastName',
+    }
+  },
+  mounted() {
+    this.strData = 'mounted'
+  },
+  computed: {
+    ...mapGetters('module1', ['getter1', 'getter2']),
+    ...mapState('module2', ['state1', 'state2']),
+    ...mapActions('module3', ['action1', 'action2']),
+
+    doubledNum(): number {
+      return this.numData * 2
+    },
+    tripledNum() {
+      return this.numData * 3
+    },
+    fullName: {
+      get(): string {
+        return `${this.firstName} ${this.lastName}`
+      },
+      set(val: string) {
+        const [first, last] = val.split(' ')
+        this.firstName = first
+        this.lastName = last
+      },
+    },
+  },
+  watch: {
+    numData(val) {
+      console.log(`num is ${val}`)
+    },
+    '$route.params'() {
+      console.log('routeParams changed')
+    },
+    prop1: {
+      handler(val) {
+        this.objData = val
+      },
+      immediate: true,
+      deep: true,
+    },
+  },
+  methods: {
+    increment() {
+      this.numData++
+    },
+    async asyncMethod() {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log('1sec')
+    },
+  },
+})
+</script>
+
+<style lang="scss" scoped>
+.sampleClass {
+  display: flex;
+}
+</style>
