@@ -41,6 +41,7 @@ const getNodeByKind = (node: ts.Node, kind: ts.SyntaxKind): ts.Node[] => {
 type ConvertedExpression = {
   expression: string
   name?: string
+  lifeCycleName?: string
 }
 
 const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
@@ -93,7 +94,8 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
 
                   break
                 case 'methods':
-                  if (!ts.isPropertyAssignment(prop)) continue
+                  setupProps.push(...methodsConverter(prop, sourceFile))
+                  // if (!ts.isPropertyAssignment(prop)) continue
                   // console.log(prop.initializer)
                   break
                 case 'watch':
@@ -181,34 +183,59 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
 
 const storePath = `ctx.root.$store`
 
+const lifeCyleMap: Record<string, string | undefined> = {
+  beforeCreate: '',
+  created: '',
+  beforeMount: 'onBeforeMount',
+  mounted: 'onMounted',
+  beforeUpdate: 'onBeforeUpdate',
+  updated: 'onUpdated',
+  beforeDestroy: 'onBeforeUnmount',
+  destroyed: 'onUnmounted',
+  errorCaptured: 'onErrorCaptured',
+  renderTracked: 'onRenderTracked',
+  renderTriggered: 'onRenderTriggered',
+}
+
+const getMethodExpression = (
+  node: ts.Node,
+  sourceFile: ts.SourceFile
+): ConvertedExpression | undefined => {
+  if (!ts.isMethodDeclaration(node)) return
+
+  const async = node.modifiers?.some(
+    (mod) => mod.kind === ts.SyntaxKind.AsyncKeyword
+  )
+    ? 'async'
+    : ''
+
+  const name = node.name.getText(sourceFile)
+  const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
+  const body = replaceContext(node.body?.getText(sourceFile) || '{}')
+
+  const lifeCycleName = lifeCyleMap[name]
+
+  if (lifeCycleName != null) {
+    const immediate = lifeCycleName === '' ? '()' : ''
+    return {
+      lifeCycleName,
+      expression: `${lifeCycleName}(${async}()${type} =>${body})${immediate}`,
+    }
+  }
+  return {
+    name,
+    expression: `const ${name} = ${async}()${type} =>${body}`,
+  }
+}
+
+const nonNull = <T>(item: T): item is NonNullable<T> => item != null
+
 const lifeCycleConverter = (
   lifeCycle: string,
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
-  if (!ts.isMethodDeclaration(node)) return []
-
-  const apiMap = {
-    beforeCreate: null,
-    created: null,
-    beforeMount: 'onBeforeMount',
-    mounted: 'onMounted',
-    beforeUpdate: 'onBeforeUpdate',
-    updated: 'onUpdated',
-    beforeDestroy: 'onBeforeUnmount',
-    destroyed: 'onUnmounted',
-    errorCaptured: 'onErrorCaptured',
-    renderTracked: 'onRenderTracked',
-    renderTriggered: 'onRenderTriggered',
-  }
-  // @ts-expect-error
-  const setupLifeCyle = apiMap[lifeCycle]
-  const body = replaceContext(node.body?.getText(sourceFile) || '{}')
-  if (setupLifeCyle != null) {
-    return [{ expression: `${setupLifeCyle}(()=>${body})` }]
-  }
-
-  return [{ expression: `(()=>${body})()` }]
+  return [getMethodExpression(node, sourceFile)].filter(nonNull)
 }
 
 const getInitializerProps = (node: ts.Node): ts.ObjectLiteralElementLike[] => {
@@ -284,10 +311,24 @@ const computedConverter = (
         const block = replaceContext(body?.getText(sourceFile) || '{}')
         const name = propName.getText(sourceFile)
 
-        return { expression: `const ${name} = ()${typeName} => ${block}`, name }
+        return {
+          expression: `const ${name} = computed(()${typeName} => ${block})`,
+          name,
+        }
       } else if (ts.isPropertyAssignment(prop)) {
       }
     })
     .flat()
-    .filter((item): item is NonNullable<typeof item> => item != null)
+    .filter(nonNull)
+}
+
+const methodsConverter = (
+  node: ts.Node,
+  sourceFile: ts.SourceFile
+): ConvertedExpression[] => {
+  return getInitializerProps(node)
+    .map((prop) => {
+      return getMethodExpression(prop, sourceFile)
+    })
+    .filter(nonNull)
 }

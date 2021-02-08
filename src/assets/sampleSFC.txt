@@ -29,7 +29,9 @@ export default Vue.extend({
       lastName: 'lastName',
     }
   },
-  created(){
+  async created(){
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await this.asyncMethod()
     console.log('created')
   },
   mounted() {
@@ -73,8 +75,8 @@ export default Vue.extend({
     },
   },
   methods: {
-    increment() {
-      this.numData++
+    increment():number {
+      return this.numData++
     },
     async asyncMethod() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
