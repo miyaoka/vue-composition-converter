@@ -1,6 +1,22 @@
 import * as ts from 'typescript'
 import { parseComponent } from 'vue-template-compiler'
 
+const storePath = `ctx.root.$store`
+
+const lifeCyleMap: Record<string, string | undefined> = {
+  beforeCreate: '',
+  created: '',
+  beforeMount: 'onBeforeMount',
+  mounted: 'onMounted',
+  beforeUpdate: 'onBeforeUpdate',
+  updated: 'onUpdated',
+  beforeDestroy: 'onBeforeUnmount',
+  destroyed: 'onUnmounted',
+  errorCaptured: 'onErrorCaptured',
+  renderTracked: 'onRenderTracked',
+  renderTriggered: 'onRenderTriggered',
+}
+
 export const parse = (input: string) => {
   const parsed = parseComponent(input)
   const scriptContent = parsed.script?.content || ''
@@ -18,10 +34,12 @@ const convertScript = (sourceFile: ts.SourceFile) => {
   return result.transformed.map((src) => printer.printFile(src)).join('')
 }
 
-const replaceContext = (str: string) => {
+const replaceContext = (str: string, refNames: Record<string, boolean>) => {
   return str
     .replace(/this\.\$/g, 'ctx.root.$')
-    .replace(/this\.([\w-]+)/g, `$1.value`)
+    .replace(/this\.([\w-]+)/g, (_, p1) => {
+      return refNames[p1] ? `${p1}.value` : p1
+    })
 }
 
 const getNodeByKind = (node: ts.Node, kind: ts.SyntaxKind): ts.Node[] => {
@@ -80,47 +98,65 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
             inExportObject = true
 
             const otherProps: ts.ObjectLiteralElementLike[] = []
-            const setupProps = []
+            const dataProps: ConvertedExpression[] = []
+            const computedProps: ConvertedExpression[] = []
+            const methodsProps: ConvertedExpression[] = []
+            const lifeCycleProps: ConvertedExpression[] = []
 
-            for (const prop of node.properties) {
-              const name = prop.name?.getText(sourceFile)
+            node.properties.forEach((prop) => {
+              const name = prop.name?.getText(sourceFile) || ''
               switch (name) {
                 case 'data':
-                  // console.log(getObjectLiteralVisitor(prop))
-                  setupProps.unshift(...dataConverter(prop, sourceFile))
+                  dataProps.push(...dataConverter(prop, sourceFile))
                   break
                 case 'computed':
-                  setupProps.push(...computedConverter(prop, sourceFile))
-
-                  break
-                case 'methods':
-                  setupProps.push(...methodsConverter(prop, sourceFile))
-                  // if (!ts.isPropertyAssignment(prop)) continue
-                  // console.log(prop.initializer)
+                  computedProps.push(...computedConverter(prop, sourceFile))
                   break
                 case 'watch':
                   break
-                case 'beforeCreate':
-                case 'created':
-                case 'beforeMount':
-                case 'mounted':
-                case 'beforeUpdate':
-                case 'updated':
-                case 'beforeDestroy':
-                case 'destroyed':
-                case 'errorCaptured':
-                case 'renderTracked':
-                case 'renderTriggered':
-                  setupProps.push(...lifeCycleConverter(name, prop, sourceFile))
+                case 'methods':
+                  methodsProps.push(...methodsConverter(prop, sourceFile))
                   break
+
                 default:
+                  if (
+                    ts.isMethodDeclaration(prop) &&
+                    lifeCyleMap[name] != null
+                  ) {
+                    // lifeCycleMethod
+                    lifeCycleProps.push(...lifeCycleConverter(prop, sourceFile))
+                    return
+                  }
+
+                  // 該当しないものはそのままにする
                   otherProps.push(prop)
                   break
               }
-              // console.log(prop)
-              // return name !== 'data'
-            }
-            // return setup
+            })
+
+            const setupProps: ConvertedExpression[] = [
+              ...dataProps,
+              ...computedProps,
+              ...methodsProps,
+              ...lifeCycleProps,
+            ]
+
+            const lifeCycleList = setupProps.reduce(
+              (acc: string[], { lifeCycleName }) => {
+                if (lifeCycleName != null && lifeCycleName !== '')
+                  acc.push(lifeCycleName)
+                return acc
+              },
+              []
+            )
+
+            const refNames = [...dataProps, ...computedProps].reduce(
+              (acc: Record<string, boolean>, { name }) => {
+                if (name != null) acc[name] = true
+                return acc
+              },
+              {}
+            )
 
             const returnStatement = `return {${setupProps
               .map(({ name }) => name)
@@ -132,14 +168,15 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
             ]
               .map(
                 ({ expression }) =>
-                  ts.createSourceFile('', expression, ts.ScriptTarget.Latest)
-                    .statements
+                  ts.createSourceFile(
+                    '',
+                    replaceContext(expression, refNames),
+                    ts.ScriptTarget.Latest
+                  ).statements
               )
               .flat()
 
-            // console.log(setupProps, setupStatements)
-
-            const setup = ts.factory.createMethodDeclaration(
+            const setupMethod = ts.factory.createMethodDeclaration(
               undefined,
               undefined,
               undefined,
@@ -163,38 +200,18 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
               undefined,
               ts.factory.createBlock(setupStatements)
             )
-            // return node
-            const ex = ts.factory.createObjectLiteralExpression([
+            // return replaced object node
+            return ts.factory.createObjectLiteralExpression([
               ...otherProps,
-              setup,
+              setupMethod,
             ])
-
-            return ex
           }
         }
       }
-
       return ts.visitEachChild(node, visitor, context)
     }
-
     return ts.visitNode(sourceFile, visitor)
   }
-}
-
-const storePath = `ctx.root.$store`
-
-const lifeCyleMap: Record<string, string | undefined> = {
-  beforeCreate: '',
-  created: '',
-  beforeMount: 'onBeforeMount',
-  mounted: 'onMounted',
-  beforeUpdate: 'onBeforeUpdate',
-  updated: 'onUpdated',
-  beforeDestroy: 'onBeforeUnmount',
-  destroyed: 'onUnmounted',
-  errorCaptured: 'onErrorCaptured',
-  renderTracked: 'onRenderTracked',
-  renderTriggered: 'onRenderTriggered',
 }
 
 const getMethodExpression = (
@@ -211,7 +228,7 @@ const getMethodExpression = (
 
   const name = node.name.getText(sourceFile)
   const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
-  const body = replaceContext(node.body?.getText(sourceFile) || '{}')
+  const body = node.body?.getText(sourceFile) || '{}'
 
   const lifeCycleName = lifeCyleMap[name]
 
@@ -231,7 +248,6 @@ const getMethodExpression = (
 const nonNull = <T>(item: T): item is NonNullable<T> => item != null
 
 const lifeCycleConverter = (
-  lifeCycle: string,
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
@@ -308,7 +324,7 @@ const computedConverter = (
       } else if (ts.isMethodDeclaration(prop)) {
         const { name: propName, body, type } = prop
         const typeName = type ? `:${type.getText(sourceFile)}` : ''
-        const block = replaceContext(body?.getText(sourceFile) || '{}')
+        const block = body?.getText(sourceFile) || '{}'
         const name = propName.getText(sourceFile)
 
         return {

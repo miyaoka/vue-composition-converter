@@ -10,6 +10,7 @@ import { mapState, mapGetters, mapActions } from 'vuex'
 import Comp1 from '@/components/Comp1.vue'
 
 export default Vue.extend({
+  name: 'SampleComp',
   components: {
     Comp1,
   },
@@ -28,14 +29,6 @@ export default Vue.extend({
       firstName: 'firstName',
       lastName: 'lastName',
     }
-  },
-  async created(){
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    await this.asyncMethod()
-    console.log('created')
-  },
-  mounted() {
-    this.strData = 'mounted'
   },
   computed: {
     ...mapGetters('module1', ['getter1']),
@@ -59,20 +52,14 @@ export default Vue.extend({
       },
     },
   },
-  watch: {
-    numData(val) {
-      console.log(`num is ${val}`)
-    },
-    '$route.params'() {
-      console.log('routeParams changed')
-    },
-    prop1: {
-      handler(val) {
-        this.objData = val
-      },
-      immediate: true,
-      deep: true,
-    },
+  async created(){
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await this.asyncMethod()
+    console.log('created')
+  },
+  mounted() {
+    this.$nextTick(()=> {})
+    this.strData = this.$store.state.aaa
   },
   methods: {
     increment():number {
@@ -81,7 +68,14 @@ export default Vue.extend({
     async asyncMethod() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       console.log('1sec')
+      this.action1()
     },
+  },
+  customMethod() {
+    console.log('custom')
+  },
+  customBlock: {
+    rules: ['aaa']
   },
 })
 </script>
