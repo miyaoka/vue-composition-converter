@@ -38,9 +38,6 @@ export default Vue.extend({
     doubledNum(): number {
       return this.numData * 2
     },
-    tripledNum() {
-      return this.numData * 3
-    },
     fullName: {
       get(): string {
         return `${this.firstName} ${this.lastName}`
@@ -52,14 +49,32 @@ export default Vue.extend({
       },
     },
   },
+  watch: {
+    numData(val) {
+      console.log(`num is ${val}`)
+    },
+    '$route.params'() {
+      console.log('routeParams changed')
+    },
+    prop1: {
+      handler(val) {
+        this.objData = val
+      },
+      immediate: true,
+      deep: true,
+    },
+  },
   async created(){
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    console.log('async created')
     await this.asyncMethod()
-    console.log('created')
   },
   mounted() {
+    console.log('mounted')
     this.$nextTick(()=> {})
     this.strData = this.$store.state.aaa
+  },
+  destroyed(){
+    console.log('destroyed')
   },
   methods: {
     increment():number {
@@ -67,7 +82,6 @@ export default Vue.extend({
     },
     async asyncMethod() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log('1sec')
       this.action1()
     },
   },
