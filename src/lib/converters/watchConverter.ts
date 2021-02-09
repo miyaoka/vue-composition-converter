@@ -20,6 +20,7 @@ export const watchConverter = (
         const block = prop.body?.getText(sourceFile) || '{}'
 
         return {
+          use: 'watch',
           type: SetupPropType.watch,
           expression: `watch(${name}, (${parameters}) => ${block})`,
         }
@@ -58,6 +59,7 @@ export const watchConverter = (
         const block = handler.body?.getText(sourceFile) || '{}'
 
         return {
+          use: 'watch',
           type: SetupPropType.watch,
           expression: `watch(${name}, (${parameters}) => ${block}, ${JSON.stringify(
             options

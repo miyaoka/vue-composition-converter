@@ -14,6 +14,7 @@ export const dataConverter = (
       const name = prop.name.getText(sourceFile)
       const text = prop.initializer.getText(sourceFile)
       return {
+        use: 'ref',
         type: SetupPropType.ref,
         expression: `const ${name} = ref(${text})`,
         name,

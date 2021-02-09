@@ -32,6 +32,7 @@ export const computedConverter = (
           case 'mapState':
             return names.map(({ text: name }) => {
               return {
+                use: 'computed',
                 type: SetupPropType.computed,
                 expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
                 name,
@@ -40,6 +41,7 @@ export const computedConverter = (
           case 'mapGetters':
             return names.map(({ text: name }) => {
               return {
+                use: 'computed',
                 type: SetupPropType.computed,
                 expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
                 name,
@@ -62,6 +64,7 @@ export const computedConverter = (
         const name = propName.getText(sourceFile)
 
         return {
+          use: 'computed',
           type: SetupPropType.computed,
           expression: `const ${name} = computed(()${typeName} => ${block})`,
           name,
@@ -73,8 +76,10 @@ export const computedConverter = (
         const block = prop.initializer.getText(sourceFile) || '{}'
 
         return {
+          use: 'computed',
           type: SetupPropType.watch,
           expression: `const ${name} = computed(${block})`,
+          name,
         }
       }
     })

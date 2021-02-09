@@ -6,18 +6,14 @@ export const SetupPropType = {
   reactive: 'reactive',
   method: 'method',
   watch: 'watch',
+  lifecycle: 'lifecycle',
 } as const
 
 export type ConvertedExpression = {
   type: keyof typeof SetupPropType
   expression: string
   name?: string
-  lifeCycleName?: string
-}
-
-export type PropObj = {
-  name: string
-  type?: string
+  use?: string
 }
 
 export const lifeCyleMap: Record<string, string | undefined> = {
@@ -75,14 +71,15 @@ export const getMethodExpression = (
   const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
   const body = node.body?.getText(sourceFile) || '{}'
 
-  const lifeCycleName = lifeCyleMap[name]
+  const lifecycleName = lifeCyleMap[name]
 
-  if (lifeCycleName != null) {
-    const immediate = lifeCycleName === '' ? '()' : ''
+  if (lifecycleName != null) {
+    const immediate = lifecycleName === '' ? '()' : ''
     return {
-      type: SetupPropType.method,
-      lifeCycleName,
-      expression: `${lifeCycleName}(${async}()${type} =>${body})${immediate}`,
+      use: lifecycleName === '' ? null : lifecycleName,
+      type: SetupPropType.lifecycle,
+      name: lifecycleName,
+      expression: `${lifecycleName}(${async}()${type} =>${body})${immediate}`,
     }
   }
   return {

@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-row h-full">
     <div class="flex-1 flex flex-col">
-      <h2>Input: (Vue2 / Option API)</h2>
+      <h2>Input: (Vue2 / Options API)</h2>
       <textarea
         class="border w-full text-xs leading-3 flex-1 p-2"
         v-model="input"
@@ -19,7 +19,7 @@
 
 <script lang="ts">
 import { ref, defineComponent, watch } from 'vue'
-import { parse } from '../lib/parse'
+import { convertSrc } from '../lib/converter'
 import text from '../assets/sampleSFC.txt?raw'
 
 import prettier from 'prettier'
@@ -36,14 +36,14 @@ import 'highlight.js/styles/gruvbox-dark.css'
 export default defineComponent({
   setup: () => {
     const input = ref(text)
-    const parsed = ref('aaa')
+    const parsed = ref('')
     watch(
       input,
       () => {
         try {
-          const parsedText = parse(input.value)
+          const outputText = convertSrc(input.value)
           const prettifiedHtml = hljs.highlightAuto(
-            prettier.format(parsedText, {
+            prettier.format(outputText, {
               parser: 'typescript',
               plugins: [parserTypeScript],
             })
