@@ -56,7 +56,16 @@ const getNodeByKind = (node: ts.Node, kind: ts.SyntaxKind): ts.Node[] => {
   return list
 }
 
+const SetupPropType = {
+  ref: 'ref',
+  computed: 'computed',
+  reactive: 'reactive',
+  method: 'method',
+  watch: 'watch',
+} as const
+
 type ConvertedExpression = {
+  type: keyof typeof SetupPropType
   expression: string
   name?: string
   lifeCycleName?: string
@@ -144,30 +153,39 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
               ...lifeCycleProps,
             ]
 
-            const lifeCycleList = setupProps.reduce(
-              (acc: string[], { lifeCycleName }) => {
-                if (lifeCycleName != null && lifeCycleName !== '')
-                  acc.push(lifeCycleName)
-                return acc
-              },
-              []
-            )
+            // const lifeCycleList = setupProps.reduce(
+            //   (acc: string[], { lifeCycleName }) => {
+            //     if (lifeCycleName != null && lifeCycleName !== '')
+            //       acc.push(lifeCycleName)
+            //     return acc
+            //   },
+            //   []
+            // )
 
-            const refNames = [...dataProps, ...computedProps].reduce(
-              (acc: Record<string, boolean>, { name }) => {
-                if (name != null) acc[name] = true
+            // this.prop => prop.valueにする対象
+            const refNames = setupProps.reduce(
+              (acc: Record<string, boolean>, { type, name }) => {
+                if (
+                  name != null &&
+                  [SetupPropType.ref, SetupPropType.computed].some(
+                    (propType) => propType === type
+                  )
+                ) {
+                  acc[name] = true
+                }
                 return acc
               },
               {}
             )
 
-            const returnStatement = `return {${setupProps
+            const returnPropsStatement = `return {${setupProps
               .map(({ name }) => name)
+              .filter((name) => name != null && name !== '')
               .join(',')}}`
 
             const setupStatements = [
               ...setupProps,
-              { expression: returnStatement },
+              { expression: returnPropsStatement },
             ]
               .map(
                 ({ expression }) =>
@@ -238,11 +256,13 @@ const getMethodExpression = (
   if (lifeCycleName != null) {
     const immediate = lifeCycleName === '' ? '()' : ''
     return {
+      type: SetupPropType.method,
       lifeCycleName,
       expression: `${lifeCycleName}(${async}()${type} =>${body})${immediate}`,
     }
   }
   return {
+    type: SetupPropType.method,
     name,
     expression: `const ${name} = ${async}()${type} =>${body}`,
   }
@@ -275,7 +295,11 @@ const dataConverter = (
       if (!ts.isPropertyAssignment(prop)) return
       const name = prop.name.getText(sourceFile)
       const text = prop.initializer.getText(sourceFile)
-      return { expression: `const ${name} = ref(${text})`, name }
+      return {
+        type: SetupPropType.ref,
+        expression: `const ${name} = ref(${text})`,
+        name,
+      }
     })
     .filter((item): item is NonNullable<typeof item> => item != null)
 }
@@ -304,6 +328,7 @@ const computedConverter = (
           case 'mapState':
             return names.map(({ text: name }) => {
               return {
+                type: SetupPropType.computed,
                 expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
                 name,
               }
@@ -311,6 +336,7 @@ const computedConverter = (
           case 'mapGetters':
             return names.map(({ text: name }) => {
               return {
+                type: SetupPropType.computed,
                 expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
                 name,
               }
@@ -318,6 +344,7 @@ const computedConverter = (
           case 'mapActions':
             return names.map(({ text: name }) => {
               return {
+                type: SetupPropType.method,
                 expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
                 name,
               }
@@ -331,6 +358,7 @@ const computedConverter = (
         const name = propName.getText(sourceFile)
 
         return {
+          type: SetupPropType.computed,
           expression: `const ${name} = computed(()${typeName} => ${block})`,
           name,
         }
@@ -366,6 +394,7 @@ const watchConverter = (
         const block = prop.body?.getText(sourceFile) || '{}'
 
         return {
+          type: SetupPropType.watch,
           expression: `watch(${name}, (${parameters}) => ${block})`,
         }
       } else if (ts.isPropertyAssignment(prop)) {
@@ -403,6 +432,7 @@ const watchConverter = (
         const block = handler.body?.getText(sourceFile) || '{}'
 
         return {
+          type: SetupPropType.watch,
           expression: `watch(${name}, (${parameters}) => ${block}, ${JSON.stringify(
             options
           )} )`,
