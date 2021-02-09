@@ -12,7 +12,7 @@ https://vue-composition-converter.vercel.app/
   - data -> ref()
   - computed
     - -> computed()
-    - -> method (mapActions)
+    - (mapActions) -> method
   - watch -> watch()
   - methods -> function
   - lifecycle -> lifecycle hooks
@@ -21,6 +21,6 @@ https://vue-composition-converter.vercel.app/
 ## convert `this`
 
 - this.prop
-  - -> prop.value (ref/computed)
-  - -> prop(other)
+  - (ref/computed) -> prop.value
+  - (other) -> prop
 - this.$globalProp -> ctx.root.$globalProp
