@@ -50,8 +50,8 @@ export default Vue.extend({
     },
   },
   watch: {
-    numData(val) {
-      console.log(`num is ${val}`)
+    numData(curr, prev) {
+      console.log(`num: ${prev} -> ${curr}`)
     },
     '$route.params'() {
       console.log('routeParams changed')
