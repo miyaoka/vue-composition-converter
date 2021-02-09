@@ -15,6 +15,11 @@ export type ConvertedExpression = {
   lifeCycleName?: string
 }
 
+export type PropObj = {
+  name: string
+  type?: string
+}
+
 export const lifeCyleMap: Record<string, string | undefined> = {
   beforeCreate: '',
   created: '',
@@ -34,18 +39,16 @@ export const nonNull = <T>(item: T): item is NonNullable<T> => item != null
 export const getNodeByKind = (
   node: ts.Node,
   kind: ts.SyntaxKind
-): ts.Node[] => {
-  const list: ts.Node[] = []
-  const search = (node: ts.Node) => {
-    if (node.kind === kind) {
-      list.push(node)
-    }
-    ts.forEachChild(node, (child) => {
-      search(child)
+): ts.Node | undefined => {
+  const find = (node: ts.Node): ts.Node | undefined => {
+    return ts.forEachChild(node, (child) => {
+      if (child.kind === kind) {
+        return child
+      }
+      return find(child)
     })
   }
-  search(node)
-  return list
+  return find(node)
 }
 
 export const getInitializerProps = (

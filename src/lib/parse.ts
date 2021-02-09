@@ -5,12 +5,15 @@ import {
   SetupPropType,
   lifeCyleMap,
   replaceThisContext,
+  getNodeByKind,
+  PropObj,
 } from './helper'
 import { computedConverter } from './converters/computedConverter'
 import { dataConverter } from './converters/dataConverter'
 import { lifeCycleConverter } from './converters/lifeCycleConverter'
 import { methodsConverter } from './converters/methodsConverter'
 import { watchConverter } from './converters/watchConverter'
+import { propReader } from './readers/propsReader'
 
 export const parse = (input: string) => {
   const parsed = parseComponent(input)
@@ -24,6 +27,60 @@ export const parse = (input: string) => {
 }
 
 const convertScript = (sourceFile: ts.SourceFile) => {
+  const exportAssignNode = getNodeByKind(
+    sourceFile,
+    ts.SyntaxKind.ExportAssignment
+  )
+  if (!exportAssignNode) return
+
+  const exportObject = getNodeByKind(
+    exportAssignNode,
+    ts.SyntaxKind.ObjectLiteralExpression
+  )
+  if (!(exportObject && ts.isObjectLiteralExpression(exportObject))) return
+
+  const otherProps: ts.ObjectLiteralElementLike[] = []
+  const dataProps: ConvertedExpression[] = []
+  const computedProps: ConvertedExpression[] = []
+  const methodsProps: ConvertedExpression[] = []
+  const watchProps: ConvertedExpression[] = []
+  const lifeCycleProps: ConvertedExpression[] = []
+  const propNames: string[] = []
+
+  const lifeCycleRegExp = new RegExp(`^${Object.keys(lifeCyleMap).join('|')}$`)
+
+  exportObject.properties.forEach((prop) => {
+    const name = prop.name?.getText(sourceFile) || ''
+    switch (true) {
+      case name === 'data':
+        dataProps.push(...dataConverter(prop, sourceFile))
+        break
+      case name === 'computed':
+        computedProps.push(...computedConverter(prop, sourceFile))
+        break
+      case name === 'watch':
+        watchProps.push(...watchConverter(prop, sourceFile))
+        break
+      case name === 'methods':
+        methodsProps.push(...methodsConverter(prop, sourceFile))
+        break
+      case lifeCycleRegExp.test(name):
+        lifeCycleProps.push(...lifeCycleConverter(prop, sourceFile))
+        break
+
+      default:
+        if (name === 'props') {
+          propNames.push(
+            ...propReader(prop, sourceFile).map(({ name }) => name)
+          )
+        }
+
+        // 該当しないものはそのままにする
+        otherProps.push(prop)
+        break
+    }
+  })
+
   const result = ts.transform(sourceFile, [transformer])
   const printer = ts.createPrinter()
   return result.transformed.map((src) => printer.printFile(src)).join('')

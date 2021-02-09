@@ -5,7 +5,7 @@ export const dataConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
-  const [objNode] = getNodeByKind(node, ts.SyntaxKind.ObjectLiteralExpression)
+  const objNode = getNodeByKind(node, ts.SyntaxKind.ObjectLiteralExpression)
 
   if (!(objNode && ts.isObjectLiteralExpression(objNode))) return []
   return objNode.properties
