@@ -76,7 +76,7 @@ export const getMethodExpression = (
   if (lifecycleName != null) {
     const immediate = lifecycleName === '' ? '()' : ''
     return {
-      use: lifecycleName === '' ? null : lifecycleName,
+      use: lifecycleName === '' ? undefined : lifecycleName,
       type: SetupPropType.lifecycle,
       name: lifecycleName,
       expression: `${lifecycleName}(${async}()${type} =>${body})${immediate}`,
