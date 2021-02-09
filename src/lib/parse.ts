@@ -1,8 +1,6 @@
 import * as ts from 'typescript'
 import { parseComponent } from 'vue-template-compiler'
 
-const storePath = `ctx.root.$store`
-
 const lifeCyleMap: Record<string, string | undefined> = {
   beforeCreate: '',
   created: '',
@@ -308,6 +306,8 @@ const computedConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
+  const storePath = `this.$store`
+
   return getInitializerProps(node)
     .map((prop) => {
       if (ts.isSpreadAssignment(prop)) {
@@ -363,6 +363,15 @@ const computedConverter = (
           name,
         }
       } else if (ts.isPropertyAssignment(prop)) {
+        if (!ts.isObjectLiteralExpression(prop.initializer)) return
+
+        const name = prop.name.getText(sourceFile)
+        const block = prop.initializer.getText(sourceFile) || '{}'
+
+        return {
+          type: SetupPropType.watch,
+          expression: `const ${name} = computed(${block})`,
+        }
       }
     })
     .flat()
