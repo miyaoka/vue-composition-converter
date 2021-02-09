@@ -1,19 +1,16 @@
 import * as ts from 'typescript'
 import { parseComponent } from 'vue-template-compiler'
-
-const lifeCyleMap: Record<string, string | undefined> = {
-  beforeCreate: '',
-  created: '',
-  beforeMount: 'onBeforeMount',
-  mounted: 'onMounted',
-  beforeUpdate: 'onBeforeUpdate',
-  updated: 'onUpdated',
-  beforeDestroy: 'onBeforeUnmount',
-  destroyed: 'onUnmounted',
-  errorCaptured: 'onErrorCaptured',
-  renderTracked: 'onRenderTracked',
-  renderTriggered: 'onRenderTriggered',
-}
+import {
+  ConvertedExpression,
+  SetupPropType,
+  lifeCyleMap,
+  replaceThisContext,
+} from './helper'
+import { computedConverter } from './converters/computedConverter'
+import { dataConverter } from './converters/dataConverter'
+import { lifeCycleConverter } from './converters/lifeCycleConverter'
+import { methodsConverter } from './converters/methodsConverter'
+import { watchConverter } from './converters/watchConverter'
 
 export const parse = (input: string) => {
   const parsed = parseComponent(input)
@@ -30,43 +27,6 @@ const convertScript = (sourceFile: ts.SourceFile) => {
   const result = ts.transform(sourceFile, [transformer])
   const printer = ts.createPrinter()
   return result.transformed.map((src) => printer.printFile(src)).join('')
-}
-
-const replaceContext = (str: string, refNames: Record<string, boolean>) => {
-  return str
-    .replace(/this\.\$/g, 'ctx.root.$')
-    .replace(/this\.([\w-]+)/g, (_, p1) => {
-      return refNames[p1] ? `${p1}.value` : p1
-    })
-}
-
-const getNodeByKind = (node: ts.Node, kind: ts.SyntaxKind): ts.Node[] => {
-  const list: ts.Node[] = []
-  const search = (node: ts.Node) => {
-    if (node.kind === kind) {
-      list.push(node)
-    }
-    ts.forEachChild(node, (child) => {
-      search(child)
-    })
-  }
-  search(node)
-  return list
-}
-
-const SetupPropType = {
-  ref: 'ref',
-  computed: 'computed',
-  reactive: 'reactive',
-  method: 'method',
-  watch: 'watch',
-} as const
-
-type ConvertedExpression = {
-  type: keyof typeof SetupPropType
-  expression: string
-  name?: string
-  lifeCycleName?: string
 }
 
 const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
@@ -161,7 +121,7 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
             // )
 
             // this.prop => prop.valueにする対象
-            const refNames = setupProps.reduce(
+            const refNameMap = setupProps.reduce(
               (acc: Record<string, boolean>, { type, name }) => {
                 if (
                   name != null &&
@@ -189,7 +149,7 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
                 ({ expression }) =>
                   ts.createSourceFile(
                     '',
-                    replaceContext(expression, refNames),
+                    replaceThisContext(expression, refNameMap),
                     ts.ScriptTarget.Latest
                   ).statements
               )
@@ -231,222 +191,4 @@ const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
     }
     return ts.visitNode(sourceFile, visitor)
   }
-}
-
-const getMethodExpression = (
-  node: ts.Node,
-  sourceFile: ts.SourceFile
-): ConvertedExpression | undefined => {
-  if (!ts.isMethodDeclaration(node)) return
-
-  const async = node.modifiers?.some(
-    (mod) => mod.kind === ts.SyntaxKind.AsyncKeyword
-  )
-    ? 'async'
-    : ''
-
-  const name = node.name.getText(sourceFile)
-  const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
-  const body = node.body?.getText(sourceFile) || '{}'
-
-  const lifeCycleName = lifeCyleMap[name]
-
-  if (lifeCycleName != null) {
-    const immediate = lifeCycleName === '' ? '()' : ''
-    return {
-      type: SetupPropType.method,
-      lifeCycleName,
-      expression: `${lifeCycleName}(${async}()${type} =>${body})${immediate}`,
-    }
-  }
-  return {
-    type: SetupPropType.method,
-    name,
-    expression: `const ${name} = ${async}()${type} =>${body}`,
-  }
-}
-
-const nonNull = <T>(item: T): item is NonNullable<T> => item != null
-
-const lifeCycleConverter = (
-  node: ts.Node,
-  sourceFile: ts.SourceFile
-): ConvertedExpression[] => {
-  return [getMethodExpression(node, sourceFile)].filter(nonNull)
-}
-
-const getInitializerProps = (node: ts.Node): ts.ObjectLiteralElementLike[] => {
-  if (!ts.isPropertyAssignment(node)) return []
-  if (!ts.isObjectLiteralExpression(node.initializer)) return []
-  return [...node.initializer.properties]
-}
-
-const dataConverter = (
-  node: ts.Node,
-  sourceFile: ts.SourceFile
-): ConvertedExpression[] => {
-  const [objNode] = getNodeByKind(node, ts.SyntaxKind.ObjectLiteralExpression)
-
-  if (!(objNode && ts.isObjectLiteralExpression(objNode))) return []
-  return objNode.properties
-    .map((prop) => {
-      if (!ts.isPropertyAssignment(prop)) return
-      const name = prop.name.getText(sourceFile)
-      const text = prop.initializer.getText(sourceFile)
-      return {
-        type: SetupPropType.ref,
-        expression: `const ${name} = ref(${text})`,
-        name,
-      }
-    })
-    .filter((item): item is NonNullable<typeof item> => item != null)
-}
-
-const computedConverter = (
-  node: ts.Node,
-  sourceFile: ts.SourceFile
-): ConvertedExpression[] => {
-  const storePath = `this.$store`
-
-  return getInitializerProps(node)
-    .map((prop) => {
-      if (ts.isSpreadAssignment(prop)) {
-        // mapGetters, mapState, mapActions
-        if (!ts.isCallExpression(prop.expression)) return
-        const { arguments: args, expression } = prop.expression
-
-        if (!ts.isIdentifier(expression)) return
-        const mapName = expression.text
-        const [namespace, mapArray] = args
-        if (!ts.isStringLiteral(namespace)) return
-        if (!ts.isArrayLiteralExpression(mapArray)) return
-
-        const namespaceText = namespace.text
-        const names = mapArray.elements as ts.NodeArray<ts.StringLiteral>
-
-        switch (mapName) {
-          case 'mapState':
-            return names.map(({ text: name }) => {
-              return {
-                type: SetupPropType.computed,
-                expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
-                name,
-              }
-            })
-          case 'mapGetters':
-            return names.map(({ text: name }) => {
-              return {
-                type: SetupPropType.computed,
-                expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
-                name,
-              }
-            })
-          case 'mapActions':
-            return names.map(({ text: name }) => {
-              return {
-                type: SetupPropType.method,
-                expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
-                name,
-              }
-            })
-        }
-        return null
-      } else if (ts.isMethodDeclaration(prop)) {
-        const { name: propName, body, type } = prop
-        const typeName = type ? `:${type.getText(sourceFile)}` : ''
-        const block = body?.getText(sourceFile) || '{}'
-        const name = propName.getText(sourceFile)
-
-        return {
-          type: SetupPropType.computed,
-          expression: `const ${name} = computed(()${typeName} => ${block})`,
-          name,
-        }
-      } else if (ts.isPropertyAssignment(prop)) {
-        if (!ts.isObjectLiteralExpression(prop.initializer)) return
-
-        const name = prop.name.getText(sourceFile)
-        const block = prop.initializer.getText(sourceFile) || '{}'
-
-        return {
-          type: SetupPropType.watch,
-          expression: `const ${name} = computed(${block})`,
-        }
-      }
-    })
-    .flat()
-    .filter(nonNull)
-}
-
-const methodsConverter = (
-  node: ts.Node,
-  sourceFile: ts.SourceFile
-): ConvertedExpression[] => {
-  return getInitializerProps(node)
-    .map((prop) => {
-      return getMethodExpression(prop, sourceFile)
-    })
-    .filter(nonNull)
-}
-
-const watchConverter = (
-  node: ts.Node,
-  sourceFile: ts.SourceFile
-): ConvertedExpression[] => {
-  return getInitializerProps(node)
-    .map((prop) => {
-      if (ts.isMethodDeclaration(prop)) {
-        const name = prop.name.getText(sourceFile)
-        const parameters = prop.parameters
-          .map((param) => param.getText(sourceFile))
-          .join(',')
-        const block = prop.body?.getText(sourceFile) || '{}'
-
-        return {
-          type: SetupPropType.watch,
-          expression: `watch(${name}, (${parameters}) => ${block})`,
-        }
-      } else if (ts.isPropertyAssignment(prop)) {
-        if (!ts.isObjectLiteralExpression(prop.initializer)) return
-
-        const props = prop.initializer.properties.reduce(
-          (acc: Record<string, ts.ObjectLiteralElementLike>, prop) => {
-            const name = prop.name?.getText(sourceFile)
-            if (name) acc[name] = prop
-            return acc
-          },
-          {}
-        )
-
-        const { handler, immediate, deep } = props
-        if (!(handler && ts.isMethodDeclaration(handler))) return
-
-        const options = [immediate, deep].reduce(
-          (acc: Record<string, any>, prop) => {
-            if (prop && ts.isPropertyAssignment(prop)) {
-              const name = prop.name?.getText(sourceFile)
-              if (name) {
-                acc[name] = prop.initializer.kind === ts.SyntaxKind.TrueKeyword
-              }
-            }
-            return acc
-          },
-          {}
-        )
-
-        const name = prop.name.getText(sourceFile)
-        const parameters = handler.parameters
-          .map((param) => param.getText(sourceFile))
-          .join(',')
-        const block = handler.body?.getText(sourceFile) || '{}'
-
-        return {
-          type: SetupPropType.watch,
-          expression: `watch(${name}, (${parameters}) => ${block}, ${JSON.stringify(
-            options
-          )} )`,
-        }
-      }
-    })
-    .filter(nonNull)
 }
