@@ -12,7 +12,7 @@ https://vue-composition-converter.vercel.app/
   - data -> ref()
   - computed
     - -> computed()
-    - (mapActions) -> method
+    - (mapActions) -> function
   - watch -> watch()
   - methods -> function
   - lifecycle -> lifecycle hooks
