@@ -103,13 +103,11 @@ const getImportStatement = (setupProps: ConvertedExpression[]) => {
     'defineComponent',
     ...new Set(setupProps.map(({ use }) => use).filter(nonNull)),
   ]
-  return usedFunctions.length === 0
-    ? []
-    : ts.createSourceFile(
-        '',
-        `import { ${usedFunctions.join(',')} } from '@vue/composition-api'`,
-        ts.ScriptTarget.Latest
-      ).statements
+  return ts.createSourceFile(
+    '',
+    `import { ${usedFunctions.join(',')} } from '@vue/composition-api'`,
+    ts.ScriptTarget.Latest
+  ).statements
 }
 
 const getExportStatement = (
