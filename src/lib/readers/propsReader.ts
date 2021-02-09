@@ -15,9 +15,11 @@ export const propReader = (
       })
       .filter(nonNull)
   } else if (ts.isArrayLiteralExpression(node.initializer)) {
-    return node.initializer.elements.map((el) => {
-      return el.getText(sourceFile)
-    })
+    return node.initializer.elements
+      .map((el) => {
+        if (ts.isStringLiteral(el)) return el.text
+      })
+      .filter(nonNull)
   }
   return []
 }
