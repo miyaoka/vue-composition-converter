@@ -10,9 +10,7 @@ https://vue-composition-converter.vercel.app/
 
 - data, computed, watch, methods, lifecycle, props -> setup()
   - data -> ref()
-  - computed
-    - -> computed()
-    - (mapActions) -> function
+  - computed -> computed()
   - watch -> watch()
   - methods -> function
   - lifecycle -> lifecycle hooks

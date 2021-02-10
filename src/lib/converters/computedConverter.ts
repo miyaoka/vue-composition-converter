@@ -2,20 +2,18 @@ import ts from 'typescript'
 import {
   ConvertedExpression,
   getInitializerProps,
-  SetupPropType,
   nonNull,
+  storePath,
 } from '../helper'
 
 export const computedConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
-  const storePath = `this.$store`
-
   return getInitializerProps(node)
     .map((prop) => {
       if (ts.isSpreadAssignment(prop)) {
-        // mapGetters, mapState, mapActions
+        // mapGetters, mapState
         if (!ts.isCallExpression(prop.expression)) return
         const { arguments: args, expression } = prop.expression
 
@@ -45,16 +43,10 @@ export const computedConverter = (
                 returnNames: [name],
               }
             })
-          case 'mapActions':
-            return names.map(({ text: name }) => {
-              return {
-                expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
-                returnNames: [name],
-              }
-            })
         }
         return null
       } else if (ts.isMethodDeclaration(prop)) {
+        // computed method
         const { name: propName, body, type } = prop
         const typeName = type ? `:${type.getText(sourceFile)}` : ''
         const block = body?.getText(sourceFile) || '{}'
@@ -66,6 +58,7 @@ export const computedConverter = (
           returnNames: [name],
         }
       } else if (ts.isPropertyAssignment(prop)) {
+        // computed getter/setter
         if (!ts.isObjectLiteralExpression(prop.initializer)) return
 
         const name = prop.name.getText(sourceFile)

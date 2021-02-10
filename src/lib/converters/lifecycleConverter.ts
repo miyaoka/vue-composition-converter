@@ -1,9 +1,9 @@
 import ts from 'typescript'
-import { ConvertedExpression, nonNull, getMethodExpression } from '../helper'
+import { ConvertedExpression, getMethodExpression } from '../helper'
 
 export const lifecycleConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
-  return [getMethodExpression(node, sourceFile)].filter(nonNull)
+  return getMethodExpression(node, sourceFile)
 }

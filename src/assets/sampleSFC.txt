@@ -33,8 +33,6 @@ export default Vue.extend({
   computed: {
     ...mapGetters('module1', ['getter1']),
     ...mapState('module2', ['state1']),
-    ...mapActions('module3', ['action1']),
-
     doubledNum(): number {
       return this.numData * 2
     },
@@ -79,6 +77,7 @@ export default Vue.extend({
     console.log('destroyed')
   },
   methods: {
+    ...mapActions('module3', ['action1']),
     increment():number {
       return this.numData++
     },

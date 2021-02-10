@@ -1,10 +1,5 @@
 import ts from 'typescript'
-import {
-  ConvertedExpression,
-  getInitializerProps,
-  SetupPropType,
-  nonNull,
-} from '../helper'
+import { ConvertedExpression, getInitializerProps, nonNull } from '../helper'
 
 export const watchConverter = (
   node: ts.Node,

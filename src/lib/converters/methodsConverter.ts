@@ -3,7 +3,6 @@ import {
   ConvertedExpression,
   getInitializerProps,
   getMethodExpression,
-  nonNull,
 } from '../helper'
 
 export const methodsConverter = (
@@ -14,5 +13,5 @@ export const methodsConverter = (
     .map((prop) => {
       return getMethodExpression(prop, sourceFile)
     })
-    .filter(nonNull)
+    .flat()
 }

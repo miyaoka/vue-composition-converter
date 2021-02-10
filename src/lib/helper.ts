@@ -1,13 +1,13 @@
 import ts from 'typescript'
 
-export const SetupPropType = {
-  ref: 'ref',
-  computed: 'computed',
-  reactive: 'reactive',
-  method: 'method',
-  watch: 'watch',
-  lifecycle: 'lifecycle',
-} as const
+// export const SetupPropType = {
+//   ref: 'ref',
+//   computed: 'computed',
+//   reactive: 'reactive',
+//   method: 'method',
+//   watch: 'watch',
+//   lifecycle: 'lifecycle',
+// } as const
 
 export type ConvertedExpression = {
   expression: string
@@ -54,38 +54,66 @@ export const getInitializerProps = (
   return [...node.initializer.properties]
 }
 
+export const storePath = `this.$store`
+
 export const getMethodExpression = (
   node: ts.Node,
   sourceFile: ts.SourceFile
-): ConvertedExpression | undefined => {
-  if (!ts.isMethodDeclaration(node)) return
+): ConvertedExpression[] => {
+  if (ts.isMethodDeclaration(node)) {
+    const async = node.modifiers?.some(
+      (mod) => mod.kind === ts.SyntaxKind.AsyncKeyword
+    )
+      ? 'async'
+      : ''
 
-  const async = node.modifiers?.some(
-    (mod) => mod.kind === ts.SyntaxKind.AsyncKeyword
-  )
-    ? 'async'
-    : ''
+    const name = node.name.getText(sourceFile)
+    const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
+    const body = node.body?.getText(sourceFile) || '{}'
+    const parameters = node.parameters
+      .map((param) => param.getText(sourceFile))
+      .join(',')
+    const fn = `${async}(${parameters})${type} =>${body}`
 
-  const name = node.name.getText(sourceFile)
-  const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
-  const body = node.body?.getText(sourceFile) || '{}'
-  const parameters = node.parameters
-    .map((param) => param.getText(sourceFile))
-    .join(',')
-  const fn = `${async}(${parameters})${type} =>${body}`
+    const lifecycleName = lifeCyleMap[name]
+    if (lifecycleName != null) {
+      const immediate = lifecycleName === '' ? '()' : ''
+      return [
+        {
+          use: lifecycleName === '' ? undefined : lifecycleName,
+          expression: `${lifecycleName}(${fn})${immediate}`,
+        },
+      ]
+    }
+    return [
+      {
+        returnNames: [name],
+        expression: `const ${name} = ${fn}`,
+      },
+    ]
+  } else if (ts.isSpreadAssignment(node)) {
+    // mapActions
+    if (!ts.isCallExpression(node.expression)) return []
+    const { arguments: args, expression } = node.expression
+    if (!ts.isIdentifier(expression)) return []
+    const mapName = expression.text
+    const [namespace, mapArray] = args
+    if (!ts.isStringLiteral(namespace)) return []
+    if (!ts.isArrayLiteralExpression(mapArray)) return []
 
-  const lifecycleName = lifeCyleMap[name]
-  if (lifecycleName != null) {
-    const immediate = lifecycleName === '' ? '()' : ''
-    return {
-      use: lifecycleName === '' ? undefined : lifecycleName,
-      expression: `${lifecycleName}(${fn})${immediate}`,
+    const namespaceText = namespace.text
+    const names = mapArray.elements as ts.NodeArray<ts.StringLiteral>
+
+    if (mapName === 'mapActions') {
+      return names.map(({ text: name }) => {
+        return {
+          expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
+          returnNames: [name],
+        }
+      })
     }
   }
-  return {
-    returnNames: [name],
-    expression: `const ${name} = ${fn}`,
-  }
+  return []
 }
 
 export const replaceThisContext = (
