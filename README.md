@@ -6,7 +6,7 @@ Convert optionsAPI into composition API
 
 https://vue-composition-converter.vercel.app/
 
-## convert into `setup`
+## convert options into `setup`
 
 - data, computed, watch, methods, lifecycle, props -> setup()
   - data -> ref()
@@ -22,6 +22,6 @@ https://vue-composition-converter.vercel.app/
 ## convert `this`
 
 - this.prop
-  - (ref, computed) -> prop.value
+  - (toRefs, ref, computed) -> prop.value
   - (other) -> prop
 - this.$globalProp -> ctx.root.$globalProp

@@ -2,7 +2,6 @@ import ts from 'typescript'
 import { parseComponent } from 'vue-template-compiler'
 import {
   ConvertedExpression,
-  SetupPropType,
   lifeCyleMap,
   replaceThisContext,
   getNodeByKind,
@@ -84,6 +83,7 @@ export const convertSrc = (input: string): string => {
           {
             use: 'toRefs',
             expression: `const { ${propNames.join(',')} } = toRefs(props)`,
+            returnNames: propNames,
           },
         ]
 
@@ -159,15 +159,23 @@ const getExportStatement = (
 const getSetupStatements = (setupProps: ConvertedExpression[]) => {
   // this.prop => prop.valueにする対象
   const refNameMap: Map<string, true> = new Map()
-  setupProps.forEach(({ use, returnName }) => {
-    if (returnName != null && use != null && /^(ref|computed)$/.test(use)) {
-      refNameMap.set(returnName, true)
+  setupProps.forEach(({ use, returnNames }) => {
+    if (
+      returnNames != null &&
+      use != null &&
+      /^(toRefs|ref|computed)$/.test(use)
+    ) {
+      returnNames.forEach((returnName) => {
+        refNameMap.set(returnName, true)
+      })
     }
   })
 
   const returnPropsStatement = `return {${setupProps
-    .filter(({ returnName }) => returnName != null && returnName !== '')
-    .map(({ returnName }) => returnName)
+    .filter((prop) => prop.use !== 'toRefs') // ignore spread props
+    .map(({ returnNames }) => returnNames)
+    .filter(nonNull)
+    .flat()
     .join(',')}}`
 
   return [...setupProps, { expression: returnPropsStatement }]

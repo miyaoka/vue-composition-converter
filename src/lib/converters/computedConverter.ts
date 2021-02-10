@@ -34,7 +34,7 @@ export const computedConverter = (
               return {
                 use: 'computed',
                 expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
-                returnName: name,
+                returnNames: [name],
               }
             })
           case 'mapGetters':
@@ -42,14 +42,14 @@ export const computedConverter = (
               return {
                 use: 'computed',
                 expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
-                returnName: name,
+                returnNames: [name],
               }
             })
           case 'mapActions':
             return names.map(({ text: name }) => {
               return {
                 expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
-                returnName: name,
+                returnNames: [name],
               }
             })
         }
@@ -63,7 +63,7 @@ export const computedConverter = (
         return {
           use: 'computed',
           expression: `const ${name} = computed(()${typeName} => ${block})`,
-          returnName: name,
+          returnNames: [name],
         }
       } else if (ts.isPropertyAssignment(prop)) {
         if (!ts.isObjectLiteralExpression(prop.initializer)) return
@@ -74,7 +74,7 @@ export const computedConverter = (
         return {
           use: 'computed',
           expression: `const ${name} = computed(${block})`,
-          returnName: name,
+          returnNames: [name],
         }
       }
     })

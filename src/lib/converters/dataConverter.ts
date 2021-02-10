@@ -16,7 +16,7 @@ export const dataConverter = (
       return {
         use: 'ref',
         expression: `const ${name} = ref(${text})`,
-        returnName: name,
+        returnNames: [name],
       }
     })
     .filter((item): item is NonNullable<typeof item> => item != null)

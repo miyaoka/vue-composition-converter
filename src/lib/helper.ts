@@ -11,7 +11,7 @@ export const SetupPropType = {
 
 export type ConvertedExpression = {
   expression: string
-  returnName?: string
+  returnNames?: string[]
   use?: string
 }
 
@@ -83,7 +83,7 @@ export const getMethodExpression = (
     }
   }
   return {
-    returnName: name,
+    returnNames: [name],
     expression: `const ${name} = ${fn}`,
   }
 }
