@@ -44,7 +44,7 @@ export const convertSrc = (input: string): string => {
   const lifecycleProps: ConvertedExpression[] = []
   const propNames: string[] = []
 
-  const lifecycleRegExp = new RegExp(`^${Object.keys(lifeCyleMap).join('|')}$`)
+  const lifecycleRegExp = new RegExp(`^(${[...lifeCyleMap.keys()].join('|')})$`)
 
   exportObject.properties.forEach((prop) => {
     const name = prop.name?.getText(sourceFile) || ''

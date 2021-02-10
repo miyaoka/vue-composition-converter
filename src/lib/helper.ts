@@ -15,19 +15,19 @@ export type ConvertedExpression = {
   use?: string
 }
 
-export const lifeCyleMap: Record<string, string | undefined> = {
-  beforeCreate: '',
-  created: '',
-  beforeMount: 'onBeforeMount',
-  mounted: 'onMounted',
-  beforeUpdate: 'onBeforeUpdate',
-  updated: 'onUpdated',
-  beforeDestroy: 'onBeforeUnmount',
-  destroyed: 'onUnmounted',
-  errorCaptured: 'onErrorCaptured',
-  renderTracked: 'onRenderTracked',
-  renderTriggered: 'onRenderTriggered',
-}
+export const lifeCyleMap: Map<string, string | undefined> = new Map([
+  ['beforeCreate', undefined],
+  ['created', undefined],
+  ['beforeMount', 'onBeforeMount'],
+  ['mounted', 'onMounted'],
+  ['beforeUpdate', 'onBeforeUpdate'],
+  ['updated', 'onUpdated'],
+  ['beforeDestroy', 'onBeforeUnmount'],
+  ['destroyed', 'onUnmounted'],
+  ['errorCaptured', 'onErrorCaptured'],
+  ['renderTracked', 'onRenderTracked'],
+  ['renderTriggered', 'onRenderTriggered'],
+])
 
 export const nonNull = <T>(item: T): item is NonNullable<T> => item != null
 
@@ -75,13 +75,13 @@ export const getMethodExpression = (
       .join(',')
     const fn = `${async}(${parameters})${type} =>${body}`
 
-    const lifecycleName = lifeCyleMap[name]
-    if (lifecycleName != null) {
-      const immediate = lifecycleName === '' ? '()' : ''
+    if (lifeCyleMap.has(name)) {
+      const newLifecycleName = lifeCyleMap.get(name)
+      const immediate = newLifecycleName == null ? '()' : ''
       return [
         {
-          use: lifecycleName === '' ? undefined : lifecycleName,
-          expression: `${lifecycleName}(${fn})${immediate}`,
+          use: newLifecycleName,
+          expression: `${newLifecycleName ?? ''}(${fn})${immediate}`,
         },
       ]
     }
