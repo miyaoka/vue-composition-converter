@@ -4,6 +4,7 @@
       <h2>Input: (Vue2 / Options API)</h2>
       <textarea
         class="border w-full text-xs leading-3 flex-1 p-2"
+        :class="{ hasError }"
         v-model="input"
       ></textarea>
     </div>
@@ -48,10 +49,12 @@ export default defineComponent({
   setup: () => {
     const input = ref(text)
     const output = ref('')
+    const hasError = ref(false)
     watch(
       input,
       () => {
         try {
+          hasError.value = false
           const outputText = convertSrc(input.value)
           const prettifiedHtml = hljs.highlightAuto(
             prettier.format(outputText, {
@@ -61,13 +64,18 @@ export default defineComponent({
           ).value
           output.value = prettifiedHtml
         } catch (err) {
-          // ignore parse error
+          hasError.value = true
           console.error(err)
         }
       },
       { immediate: true }
     )
-    return { input, output }
+    return { input, output, hasError }
   },
 })
 </script>
+<style scoped>
+.hasError {
+  @apply border-4 border-red-500 outline-none;
+}
+</style>
