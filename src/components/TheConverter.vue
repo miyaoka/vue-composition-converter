@@ -11,7 +11,7 @@
       <h2>Output: (Vue2 / Composition API)</h2>
       <pre
         class="hljs border w-full text-xs leading-3 flex-1 p-2 whitespace-pre-wrap"
-        v-html="parsed"
+        v-html="output"
       />
     </div>
     <div
@@ -47,7 +47,7 @@ import 'highlight.js/styles/gruvbox-dark.css'
 export default defineComponent({
   setup: () => {
     const input = ref(text)
-    const parsed = ref('')
+    const output = ref('')
     watch(
       input,
       () => {
@@ -59,14 +59,15 @@ export default defineComponent({
               plugins: [parserTypeScript],
             })
           ).value
-          parsed.value = prettifiedHtml
+          output.value = prettifiedHtml
         } catch (err) {
           // ignore parse error
+          console.error(err)
         }
       },
       { immediate: true }
     )
-    return { input, parsed }
+    return { input, output }
   },
 })
 </script>
