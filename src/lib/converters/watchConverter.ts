@@ -21,7 +21,6 @@ export const watchConverter = (
 
         return {
           use: 'watch',
-          type: SetupPropType.watch,
           expression: `watch(${name}, (${parameters}) => ${block})`,
         }
       } else if (ts.isPropertyAssignment(prop)) {
@@ -60,7 +59,6 @@ export const watchConverter = (
 
         return {
           use: 'watch',
-          type: SetupPropType.watch,
           expression: `watch(${name}, (${parameters}) => ${block}, ${JSON.stringify(
             options
           )} )`,

@@ -10,9 +10,8 @@ export const SetupPropType = {
 } as const
 
 export type ConvertedExpression = {
-  type: keyof typeof SetupPropType
   expression: string
-  name?: string
+  returnName?: string
   use?: string
 }
 
@@ -80,30 +79,22 @@ export const getMethodExpression = (
     const immediate = lifecycleName === '' ? '()' : ''
     return {
       use: lifecycleName === '' ? undefined : lifecycleName,
-      type: SetupPropType.lifecycle,
-      name: lifecycleName,
       expression: `${lifecycleName}(${fn})${immediate}`,
     }
   }
   return {
-    type: SetupPropType.method,
-    name,
+    returnName: name,
     expression: `const ${name} = ${fn}`,
   }
 }
 
 export const replaceThisContext = (
   str: string,
-  refNameMap: Map<string, true>,
-  propsNameMap: Map<string, true>
+  refNameMap: Map<string, true>
 ) => {
   return str
     .replace(/this\.\$/g, 'ctx.root.$')
     .replace(/this\.([\w-]+)/g, (_, p1) => {
-      return propsNameMap.get(p1)
-        ? `props.${p1}`
-        : refNameMap.get(p1)
-        ? `${p1}.value`
-        : p1
+      return refNameMap.has(p1) ? `${p1}.value` : p1
     })
 }

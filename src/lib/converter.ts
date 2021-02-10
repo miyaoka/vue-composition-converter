@@ -77,7 +77,18 @@ export const convertSrc = (input: string): string => {
     }
   })
 
+  const propsRefProps: ConvertedExpression[] =
+    propNames.length === 0
+      ? []
+      : [
+          {
+            use: 'toRefs',
+            expression: `const { ${propNames.join(',')} } = toRefs(props)`,
+          },
+        ]
+
   const setupProps: ConvertedExpression[] = [
+    ...propsRefProps,
     ...dataProps,
     ...computedProps,
     ...methodsProps,
@@ -130,7 +141,7 @@ const getExportStatement = (
     undefined,
     setupArgs,
     undefined,
-    ts.factory.createBlock(getSetupStatements(setupProps, propNames))
+    ts.factory.createBlock(getSetupStatements(setupProps))
   )
 
   return ts.factory.createExportAssignment(
@@ -145,33 +156,18 @@ const getExportStatement = (
   )
 }
 
-const getSetupStatements = (
-  setupProps: ConvertedExpression[],
-  propNames: string[]
-) => {
+const getSetupStatements = (setupProps: ConvertedExpression[]) => {
   // this.prop => prop.valueにする対象
   const refNameMap: Map<string, true> = new Map()
-  setupProps.forEach(({ type, name }) => {
-    if (
-      name != null &&
-      [SetupPropType.ref, SetupPropType.computed].some(
-        (propType) => propType === type
-      )
-    ) {
-      refNameMap.set(name, true)
+  setupProps.forEach(({ use, returnName }) => {
+    if (returnName != null && use != null && /^(ref|computed)$/.test(use)) {
+      refNameMap.set(returnName, true)
     }
-  })
-  const propNameMap: Map<string, true> = new Map()
-  propNames.forEach((prop) => {
-    propNameMap.set(prop, true)
   })
 
   const returnPropsStatement = `return {${setupProps
-    .filter(
-      ({ name, type }) =>
-        type !== SetupPropType.lifecycle && name != null && name !== ''
-    )
-    .map(({ name }) => name)
+    .filter(({ returnName }) => returnName != null && returnName !== '')
+    .map(({ returnName }) => returnName)
     .join(',')}}`
 
   return [...setupProps, { expression: returnPropsStatement }]
@@ -179,7 +175,7 @@ const getSetupStatements = (
       ({ expression }) =>
         ts.createSourceFile(
           '',
-          replaceThisContext(expression, refNameMap, propNameMap),
+          replaceThisContext(expression, refNameMap),
           ts.ScriptTarget.Latest
         ).statements
     )

@@ -15,9 +15,8 @@ export const dataConverter = (
       const text = prop.initializer.getText(sourceFile)
       return {
         use: 'ref',
-        type: SetupPropType.ref,
         expression: `const ${name} = ref(${text})`,
-        name,
+        returnName: name,
       }
     })
     .filter((item): item is NonNullable<typeof item> => item != null)

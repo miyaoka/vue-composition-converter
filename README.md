@@ -8,7 +8,7 @@ https://vue-composition-converter.vercel.app/
 
 ## convert into `setup`
 
-- data/computed/watch/methods/lifecycle -> setup()
+- data, computed, watch, methods, lifecycle, props -> setup()
   - data -> ref()
   - computed
     - -> computed()
@@ -16,11 +16,12 @@ https://vue-composition-converter.vercel.app/
   - watch -> watch()
   - methods -> function
   - lifecycle -> lifecycle hooks
-    - beforeCreate/created -> Immediate function
+    - beforeCreate, created -> Immediate function
+  - props -> toRefs()
 
 ## convert `this`
 
 - this.prop
-  - (ref/computed) -> prop.value
+  - (ref, computed) -> prop.value
   - (other) -> prop
 - this.$globalProp -> ctx.root.$globalProp
