@@ -70,22 +70,25 @@ export const getMethodExpression = (
   const name = node.name.getText(sourceFile)
   const type = node.type ? `:${node.type.getText(sourceFile)}` : ''
   const body = node.body?.getText(sourceFile) || '{}'
+  const parameters = node.parameters
+    .map((param) => param.getText(sourceFile))
+    .join(',')
+  const fn = `${async}(${parameters})${type} =>${body}`
 
   const lifecycleName = lifeCyleMap[name]
-
   if (lifecycleName != null) {
     const immediate = lifecycleName === '' ? '()' : ''
     return {
       use: lifecycleName === '' ? undefined : lifecycleName,
       type: SetupPropType.lifecycle,
       name: lifecycleName,
-      expression: `${lifecycleName}(${async}()${type} =>${body})${immediate}`,
+      expression: `${lifecycleName}(${fn})${immediate}`,
     }
   }
   return {
     type: SetupPropType.method,
     name,
-    expression: `const ${name} = ${async}()${type} =>${body}`,
+    expression: `const ${name} = ${fn}`,
   }
 }
 

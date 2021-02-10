@@ -80,9 +80,9 @@ export default Vue.extend({
     increment():number {
       return this.numData++
     },
-    async asyncMethod() {
+    async asyncMethod(args) {
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      this.action1()
+      this.action1(args)
     },
   },
   customMethod() {
