@@ -115,8 +115,7 @@ const getExportStatement = (
   propNames: string[],
   otherProps: ts.ObjectLiteralElementLike[]
 ) => {
-  const propsArg =
-    propNames.length === 0 ? '_props' : `{${propNames.join(',')}}`
+  const propsArg = propNames.length === 0 ? '_props' : `props`
 
   const setupArgs = [propsArg, 'ctx'].map((name) =>
     ts.factory.createParameterDeclaration(undefined, undefined, undefined, name)
@@ -131,7 +130,7 @@ const getExportStatement = (
     undefined,
     setupArgs,
     undefined,
-    ts.factory.createBlock(getSetupStatements(setupProps))
+    ts.factory.createBlock(getSetupStatements(setupProps, propNames))
   )
 
   return ts.factory.createExportAssignment(
@@ -146,22 +145,27 @@ const getExportStatement = (
   )
 }
 
-const getSetupStatements = (setupProps: ConvertedExpression[]) => {
+const getSetupStatements = (
+  setupProps: ConvertedExpression[],
+  propNames: string[]
+) => {
   // this.prop => prop.valueにする対象
-  const refNameMap = setupProps.reduce(
-    (acc: Record<string, boolean>, { type, name }) => {
-      if (
-        name != null &&
-        [SetupPropType.ref, SetupPropType.computed].some(
-          (propType) => propType === type
-        )
-      ) {
-        acc[name] = true
-      }
-      return acc
-    },
-    {}
-  )
+  const refNameMap: Map<string, true> = new Map()
+  setupProps.forEach(({ type, name }) => {
+    if (
+      name != null &&
+      [SetupPropType.ref, SetupPropType.computed].some(
+        (propType) => propType === type
+      )
+    ) {
+      refNameMap.set(name, true)
+    }
+  })
+  const propNameMap: Map<string, true> = new Map()
+  propNames.forEach((prop) => {
+    propNameMap.set(prop, true)
+  })
+
   const returnPropsStatement = `return {${setupProps
     .filter(
       ({ name, type }) =>
@@ -175,7 +179,7 @@ const getSetupStatements = (setupProps: ConvertedExpression[]) => {
       ({ expression }) =>
         ts.createSourceFile(
           '',
-          replaceThisContext(expression, refNameMap),
+          replaceThisContext(expression, refNameMap, propNameMap),
           ts.ScriptTarget.Latest
         ).statements
     )

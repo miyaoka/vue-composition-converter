@@ -70,7 +70,9 @@ export default Vue.extend({
   },
   mounted() {
     console.log('mounted')
-    this.$nextTick(()=> {})
+    this.$nextTick(()=> {
+      console.log(this.prop1)
+    })
     this.strData = this.$store.state.aaa
   },
   destroyed(){

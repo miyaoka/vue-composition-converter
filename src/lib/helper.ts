@@ -94,11 +94,16 @@ export const getMethodExpression = (
 
 export const replaceThisContext = (
   str: string,
-  refNameMap: Record<string, boolean>
+  refNameMap: Map<string, true>,
+  propsNameMap: Map<string, true>
 ) => {
   return str
     .replace(/this\.\$/g, 'ctx.root.$')
     .replace(/this\.([\w-]+)/g, (_, p1) => {
-      return refNameMap[p1] ? `${p1}.value` : p1
+      return propsNameMap.get(p1)
+        ? `props.${p1}`
+        : refNameMap.get(p1)
+        ? `${p1}.value`
+        : p1
     })
 }
