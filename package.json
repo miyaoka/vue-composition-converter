@@ -2,7 +2,7 @@
   "name": "vue-composition-converter",
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open",
     "build": "vuedx-typecheck . && vite build",
     "serve": "vite preview"
   },
