@@ -622,9 +622,9 @@ emojis-list@^3.0.0:
   integrity sha512-/kyM18EfinwXZbno9FyUGeFh87KC8HRQBQGildHZbEuRyWFOmv1U10o9BBp8XVZDVNNuQKyIGIu5ZYAAXJ0V2Q==
 
 esbuild@^0.8.34:
-  version "0.8.46"
-  resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.8.46.tgz#8fc7230ce3019b12e2553399f0c03875a729c26b"
-  integrity sha512-xck9sXNCNmjDHCCfxTCyhKTiFuEBweh+IDAhMLOJI990v1Fzii6MyIkT1LbkvjgoVgPX2SK1kpi5eZVGNrl8yg==
+  version "0.8.47"
+  resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.8.47.tgz#5d5c59b7dcb8a20dfadf65a985e5e5ca7b24eff2"
+  integrity sha512-4C9pInguP36c9CRDMSb6W1KrMfXrLIQVtI02Vglc43RBV0Dw49ODEnP6985mrz5iqCdQ2Cxmb9i670J/s3DBPA==
 
 escalade@^3.1.1:
   version "3.1.1"
@@ -1186,17 +1186,17 @@ uuid@^8.3.2:
   integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==
 
 vite-plugin-windicss@^0.1.14:
-  version "0.1.14"
-  resolved "https://registry.yarnpkg.com/vite-plugin-windicss/-/vite-plugin-windicss-0.1.14.tgz#f5bf0f7028d8a31548eaec6b2badbf9527fded9a"
-  integrity sha512-AeX1O4lrA/rcAfaPEDtfb1sZHdZiB9TAvowQUj5x/cURCuH3mNQp4+tBWrVJvm1tW06NR2WXy9BuNFDeVk85rw==
+  version "0.1.18"
+  resolved "https://registry.yarnpkg.com/vite-plugin-windicss/-/vite-plugin-windicss-0.1.18.tgz#15c6784160a665a466d2db70f2dd61c8bc4b5015"
+  integrity sha512-CUHK9YfhBev2mv3FdVpNq9IgNVU8z7dPtoNvCR1xwkU+ygRt6nJ1H1XWRKYZ6oy3BRVmUV8+GcY04m8/XGJuiQ==
   dependencies:
     fast-glob "^3.2.5"
-    windicss "^2.1.6"
+    windicss "^2.1.10"
 
 vite@^2.0.0-beta.70:
-  version "2.0.0-beta.70"
-  resolved "https://registry.yarnpkg.com/vite/-/vite-2.0.0-beta.70.tgz#ec0d4f2bfd02f31d2c59aa9760f27c26647f41ce"
-  integrity sha512-rbuAYZE8T0jNOUykkyfjiiKmz4MpW2KqzHO8++WCCDXyxzIg56ICQ/B6NLZzVpWyk0iSKiUKr2k8NMkmDlZAQQ==
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/vite/-/vite-2.0.1.tgz#348fc5c0de510aa90bd01ecf87df210ce741b38e"
+  integrity sha512-x7ZfikjNs+6n4cdvwb9L5r5xBCdjmtmHFHaI4JVR3nAkJbMCK/dynfDWky8/NseZ9Ncz1jVxTQ/Bcf+n1ps1Ww==
   dependencies:
     esbuild "^0.8.34"
     postcss "^8.2.1"
@@ -1237,10 +1237,10 @@ vue@^3.0.5:
     "@vue/runtime-dom" "3.0.5"
     "@vue/shared" "3.0.5"
 
-windicss@^2.1.6:
-  version "2.1.6"
-  resolved "https://registry.yarnpkg.com/windicss/-/windicss-2.1.6.tgz#39e281d24e42a1dc5271de433350b72508598a66"
-  integrity sha512-G+RCA/SC+LVDf9xXNYKjljmNDZOlS4XhZrHySH7Anh9ymTbo4AXsKGqZU1jKWTzSky6IP5fR4ug5YVBo44NV8Q==
+windicss@^2.1.10:
+  version "2.1.11"
+  resolved "https://registry.yarnpkg.com/windicss/-/windicss-2.1.11.tgz#35dc9d683488dcfacf94331967b59765a505f18b"
+  integrity sha512-79mPoUmvamwdJb+MJ/ug+XILxFzrTNCXo/HmacUn3V9sRQ6w5lA9KkpTrG70N7Oab0hbIFaq+X3Yva+QLSV0Pw==
 
 wrap-ansi@^7.0.0:
   version "7.0.0"
