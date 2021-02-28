@@ -1,7 +1,14 @@
 <template>
   <div class="flex flex-row h-full">
     <div class="flex-1 flex flex-col">
-      <h2>Input: (Vue2 / Options API)</h2>
+      <div class="flex flex-row">
+        <h2>Input: (Vue2)</h2>
+        <select v-model="selectedTemplate" class="border">
+          <option v-for="templateItem in templateList" :key="templateItem">
+            {{ templateItem }}
+          </option>
+        </select>
+      </div>
       <textarea
         class="border w-full text-xs leading-3 flex-1 p-2"
         :class="{ hasError }"
@@ -32,7 +39,6 @@
 <script lang="ts">
 import { ref, defineComponent, watch } from 'vue'
 import { convertSrc } from '../lib/converter'
-import text from '../assets/sampleSFC.txt?raw'
 
 import prettier from 'prettier'
 // @ts-ignore
@@ -47,14 +53,19 @@ import 'highlight.js/styles/gruvbox-dark.css'
 
 export default defineComponent({
   setup: () => {
-    const input = ref(text)
+    const input = ref('')
     const output = ref('')
     const hasError = ref(false)
+    const templateList = ['classAPI', 'optionsAPI']
+    const selectedTemplate = ref(templateList[0])
     watch(
-      input,
-      () => {
+      selectedTemplate,
+      async () => {
         try {
           hasError.value = false
+          input.value = (
+            await import(`../assets/template/${selectedTemplate.value}.txt?raw`)
+          ).default
           const outputText = convertSrc(input.value)
           const prettifiedHtml = hljs.highlightAuto(
             prettier.format(outputText, {
@@ -70,7 +81,7 @@ export default defineComponent({
       },
       { immediate: true }
     )
-    return { input, output, hasError }
+    return { input, output, hasError, templateList, selectedTemplate }
   },
 })
 </script>
