@@ -15,7 +15,7 @@ export type ConvertedExpression = {
   use?: string
 }
 
-export const lifeCyleMap: Map<string, string | undefined> = new Map([
+export const lifecycleNameMap: Map<string, string | undefined> = new Map([
   ['beforeCreate', undefined],
   ['created', undefined],
   ['beforeMount', 'onBeforeMount'],
@@ -75,8 +75,8 @@ export const getMethodExpression = (
       .join(',')
     const fn = `${async}(${parameters})${type} =>${body}`
 
-    if (lifeCyleMap.has(name)) {
-      const newLifecycleName = lifeCyleMap.get(name)
+    if (lifecycleNameMap.has(name)) {
+      const newLifecycleName = lifecycleNameMap.get(name)
       const immediate = newLifecycleName == null ? '()' : ''
       return [
         {

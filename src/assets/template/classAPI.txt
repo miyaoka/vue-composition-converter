@@ -15,7 +15,7 @@ import OtherComponent from './OtherComponent.vue'
 })
 export default class SomeComponent extends Vue {
   // Declared as component data
-  count = 0
+  count:number = 0
   firstName = ''
   lastName = ''
 
@@ -39,11 +39,14 @@ export default class SomeComponent extends Vue {
   }
 
   // Declared as component method
-  increment() {
+  async increment():number {
     this.count++
   }
 
   // Declared as computed property getter
+  get double():number{
+    return count * 2
+  }
   get name() {
     return this.firstName + ' ' + this.lastName
   }
