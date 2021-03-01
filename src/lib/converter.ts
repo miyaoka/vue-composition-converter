@@ -27,15 +27,96 @@ export const convertSrc = (input: string): string => {
     sourceFile,
     ts.SyntaxKind.ExportAssignment
   )
-  if (!exportAssignNode) throw new Error('no export node')
+  if (exportAssignNode) {
+    // optionsAPI
+    const options = convertOptions(sourceFile)
+    if (!options) {
+      throw new Error('invalid options')
+    }
 
-  const exportObject = getNodeByKind(
-    exportAssignNode,
-    ts.SyntaxKind.ObjectLiteralExpression
+    const { setupProps, propNames, otherProps } = options
+
+    const newSrc = ts.factory.createSourceFile(
+      [
+        ...getImportStatement(setupProps),
+        ...sourceFile.statements.filter(
+          (state) => !ts.isExportAssignment(state)
+        ),
+        getExportStatement(setupProps, propNames, otherProps),
+      ],
+      sourceFile.endOfFileToken,
+      sourceFile.flags
+    )
+    const printer = ts.createPrinter()
+    return printer.printFile(newSrc)
+  }
+
+  const classNode = getNodeByKind(sourceFile, ts.SyntaxKind.ClassDeclaration)
+  if (classNode) {
+    // classAPI
+    const options = convertOptions(sourceFile)
+
+    const { setupProps, propNames, otherProps } = options || {
+      setupProps: [],
+      propNames: [],
+      otherProps: [],
+    }
+
+    const newSrc = ts.factory.createSourceFile(
+      [
+        ...getImportStatement(setupProps),
+        ...sourceFile.statements.filter(
+          (state) => !ts.isClassDeclaration(state)
+        ),
+        getExportStatement(setupProps, propNames, otherProps),
+      ],
+      sourceFile.endOfFileToken,
+      sourceFile.flags
+    )
+    const printer = ts.createPrinter()
+    return printer.printFile(newSrc)
+  }
+
+  if (!exportAssignNode) throw new Error('no export node1')
+}
+
+const convertOptions = (sourceFile: ts.SourceFile) => {
+  const exportAssignNode = getNodeByKind(
+    sourceFile,
+    ts.SyntaxKind.ExportAssignment
   )
-  if (!(exportObject && ts.isObjectLiteralExpression(exportObject)))
-    throw new Error('no export object')
+  if (exportAssignNode) {
+    const objectNode = getNodeByKind(
+      exportAssignNode,
+      ts.SyntaxKind.ObjectLiteralExpression
+    )
+    if (objectNode && ts.isObjectLiteralExpression(objectNode)) {
+      return _convertOptions(objectNode, sourceFile)
+    }
+  }
+  const classNode = getNodeByKind(sourceFile, ts.SyntaxKind.ClassDeclaration)
+  if (classNode) {
+    const decoratorNode = getNodeByKind(classNode, ts.SyntaxKind.Decorator)
 
+    if (decoratorNode) {
+      const objectNode = getNodeByKind(
+        decoratorNode,
+        ts.SyntaxKind.ObjectLiteralExpression
+      )
+
+      if (objectNode && ts.isObjectLiteralExpression(objectNode)) {
+        return _convertOptions(objectNode, sourceFile)
+      }
+    }
+  }
+
+  return null
+}
+
+const _convertOptions = (
+  exportObject: ts.ObjectLiteralExpression,
+  sourceFile: ts.SourceFile
+) => {
   const otherProps: ts.ObjectLiteralElementLike[] = []
   const dataProps: ConvertedExpression[] = []
   const computedProps: ConvertedExpression[] = []
@@ -96,17 +177,11 @@ export const convertSrc = (input: string): string => {
     ...lifecycleProps,
   ]
 
-  const newSrc = ts.factory.createSourceFile(
-    [
-      ...getImportStatement(setupProps),
-      ...sourceFile.statements.filter((state) => !ts.isExportAssignment(state)),
-      getExportStatement(setupProps, propNames, otherProps),
-    ],
-    sourceFile.endOfFileToken,
-    sourceFile.flags
-  )
-  const printer = ts.createPrinter()
-  return printer.printFile(newSrc)
+  return {
+    setupProps,
+    propNames,
+    otherProps,
+  }
 }
 
 const getImportStatement = (setupProps: ConvertedExpression[]) => {

@@ -61,19 +61,11 @@ export default defineComponent({
     watch(
       selectedTemplate,
       async () => {
+        hasError.value = false
         try {
-          hasError.value = false
           input.value = (
             await import(`../assets/template/${selectedTemplate.value}.txt?raw`)
           ).default
-          const outputText = convertSrc(input.value)
-          const prettifiedHtml = hljs.highlightAuto(
-            prettier.format(outputText, {
-              parser: 'typescript',
-              plugins: [parserTypeScript],
-            })
-          ).value
-          output.value = prettifiedHtml
         } catch (err) {
           hasError.value = true
           console.error(err)
@@ -81,6 +73,23 @@ export default defineComponent({
       },
       { immediate: true }
     )
+
+    watch(input, () => {
+      try {
+        hasError.value = false
+        const outputText = convertSrc(input.value)
+        const prettifiedHtml = hljs.highlightAuto(
+          prettier.format(outputText, {
+            parser: 'typescript',
+            plugins: [parserTypeScript],
+          })
+        ).value
+        output.value = prettifiedHtml
+      } catch (err) {
+        hasError.value = true
+        console.error(err)
+      }
+    })
     return { input, output, hasError, templateList, selectedTemplate }
   },
 })
