@@ -163,11 +163,9 @@ export const convertSrc = (input: string): string => {
       'props',
       ts.factory.createObjectLiteralExpression(
         Array.from(classProps.propsMap.entries()).map(([key, value]) => {
-          const { options } = value
-          return ts.factory.createPropertyAssignment(
-            key,
-            ts.factory.createIdentifier(options)
-          )
+          const { node } = value
+          console.log(node)
+          return ts.factory.createPropertyAssignment(key, node)
         })
       )
     )
@@ -175,7 +173,15 @@ export const convertSrc = (input: string): string => {
 
     const newSrc = ts.factory.createSourceFile(
       [
-        ...getImportStatement(setupProps),
+        ...getImportStatement([
+          ...setupProps,
+          ...Array.from(classProps.propsMap.values()).map((prop) => {
+            return {
+              expression: '',
+              use: prop.use,
+            }
+          }),
+        ]),
         ...sourceFile.statements.filter(
           (state) => !ts.isClassDeclaration(state)
         ),
@@ -195,7 +201,10 @@ const parseClassNode = (
   classNode: ts.ClassDeclaration,
   sourceFile: ts.SourceFile
 ) => {
-  const propsMap: Map<string, any> = new Map()
+  const propsMap: Map<
+    string,
+    { use?: string; node: ts.ObjectLiteralExpression }
+  > = new Map()
   const dataMap: Map<string, any> = new Map()
   const getterMap: Map<string, any> = new Map()
   const setterMap: Map<string, any> = new Map()
@@ -280,19 +289,9 @@ const parseClassNode = (
       const type = member.type?.getText(sourceFile)
       if (decorators) {
         // props
+        const node = parsePropDecorator(decorators[0], sourceFile, type)
+        if (node) propsMap.set(name, node)
 
-        const decorator = parsePropDecorator(decorators[0], sourceFile)
-        if (!(decorator && decorator.decoratorName === 'Prop')) return
-
-        const options = decorator.options || {}
-        propsMap.set(name, {
-          options: JSON.stringify({
-            ...options,
-            ...{
-              type: type == null ? decorator.type : tsTypeToVuePropType(type),
-            },
-          }),
-        })
         return
       }
       const initializer = member.initializer?.getText(sourceFile)
@@ -315,7 +314,7 @@ const parseClassNode = (
   }
 }
 
-const tsTypeToVuePropType = (type: string) => {
+const tsTypeToVuePropType = (type?: string) => {
   /* vue type
   String
   Number
@@ -327,48 +326,73 @@ const tsTypeToVuePropType = (type: string) => {
   Symbol
   */
 
+  if (type == null) {
+    return { expression: `null` }
+  }
+
   if (/^(string|number|boolean)$/.test(type)) {
-    return type.charAt(0).toUpperCase() + type.slice(1)
+    return { expression: type.charAt(0).toUpperCase() + type.slice(1) }
   }
 
   if (/.+\[\]$/.test(type)) {
-    return `Array as Proptype<${type}>`
+    return {
+      use: 'PropType',
+      expression: `Array as Proptype<${type}>`,
+    }
   }
-
-  return `Object as PropType<${type}>`
+  return {
+    use: 'PropType',
+    expression: `Object as PropType<${type}>`,
+  }
 }
 
 const parsePropDecorator = (
   decorator: ts.Decorator,
-  sourceFile: ts.SourceFile
+  sourceFile: ts.SourceFile,
+  tsType?: string
 ) => {
   if (!ts.isCallExpression(decorator.expression)) return null
 
   const callExpression = decorator.expression
   const decoratorName = callExpression.expression.getText(sourceFile)
+  if (decoratorName !== 'Prop') return null
 
-  let type = ''
-  let options = {}
-  callExpression.arguments.forEach((arg) => {
-    if (ts.isObjectLiteralExpression(arg)) {
-      options = arg.properties.reduce((acc, prop) => {
-        if (!ts.isPropertyAssignment(prop)) return acc
-        return {
-          ...acc,
-          [prop.name.getText(sourceFile)]: prop.initializer.getText(sourceFile),
-        }
-      }, {})
+  const arg = callExpression.arguments[0]
 
-      console.log(options)
-    } else {
-      type = arg.getText(sourceFile)
+  const vuePropType = tsTypeToVuePropType(tsType)
+  if (arg != null && ts.isObjectLiteralExpression(arg)) {
+    if (tsType == null) {
+      return {
+        node: arg,
+      }
     }
-  })
+
+    const typeState = ts.createSourceFile(
+      '',
+      vuePropType.expression,
+      ts.ScriptTarget.Latest
+    ).statements[0]
+
+    if (ts.isExpressionStatement(typeState)) {
+      const options = ts.factory.createObjectLiteralExpression([
+        ...arg.properties,
+        ts.factory.createPropertyAssignment('type', typeState.expression),
+      ])
+      return {
+        use: vuePropType.use,
+        node: options,
+      }
+    }
+  }
 
   return {
-    decoratorName,
-    type,
-    options,
+    use: vuePropType.use,
+    node: ts.factory.createObjectLiteralExpression([
+      ts.factory.createPropertyAssignment(
+        'type',
+        ts.factory.createIdentifier(vuePropType.expression)
+      ),
+    ]),
   }
 }
 const getDecoratorParams = (
