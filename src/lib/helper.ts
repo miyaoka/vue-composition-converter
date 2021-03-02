@@ -126,3 +126,84 @@ export const replaceThisContext = (
       return refNameMap.has(p1) ? `${p1}.value` : p1
     })
 }
+
+export const getImportStatement = (setupProps: ConvertedExpression[]) => {
+  const usedFunctions = [
+    'defineComponent',
+    ...new Set(setupProps.map(({ use }) => use).filter(nonNull)),
+  ]
+  return ts.createSourceFile(
+    '',
+    `import { ${usedFunctions.join(',')} } from '@vue/composition-api'`,
+    ts.ScriptTarget.Latest
+  ).statements
+}
+
+export const getExportStatement = (
+  setupProps: ConvertedExpression[],
+  propNames: string[],
+  otherProps: ts.ObjectLiteralElementLike[]
+) => {
+  const propsArg = propNames.length === 0 ? '_props' : `props`
+
+  const setupArgs = [propsArg, 'ctx'].map((name) =>
+    ts.factory.createParameterDeclaration(undefined, undefined, undefined, name)
+  )
+
+  const setupMethod = ts.factory.createMethodDeclaration(
+    undefined,
+    undefined,
+    undefined,
+    'setup',
+    undefined,
+    undefined,
+    setupArgs,
+    undefined,
+    ts.factory.createBlock(getSetupStatements(setupProps))
+  )
+
+  return ts.factory.createExportAssignment(
+    undefined,
+    undefined,
+    undefined,
+    ts.factory.createCallExpression(
+      ts.factory.createIdentifier('defineComponent'),
+      undefined,
+      [ts.factory.createObjectLiteralExpression([...otherProps, setupMethod])]
+    )
+  )
+}
+
+export const getSetupStatements = (setupProps: ConvertedExpression[]) => {
+  // this.prop => prop.valueにする対象
+  const refNameMap: Map<string, true> = new Map()
+  setupProps.forEach(({ use, returnNames }) => {
+    if (
+      returnNames != null &&
+      use != null &&
+      /^(toRefs|ref|computed)$/.test(use)
+    ) {
+      returnNames.forEach((returnName) => {
+        refNameMap.set(returnName, true)
+      })
+    }
+  })
+
+  const returnPropsStatement = `return {${setupProps
+    .filter((prop) => prop.use !== 'toRefs') // ignore spread props
+    .map(({ returnNames }) => returnNames)
+    .filter(nonNull)
+    .flat()
+    .join(',')}}`
+
+  return [...setupProps, { expression: returnPropsStatement }]
+    .map(
+      ({ expression }) =>
+        ts.createSourceFile(
+          '',
+          replaceThisContext(expression, refNameMap),
+          ts.ScriptTarget.Latest
+        ).statements
+    )
+    .flat()
+}

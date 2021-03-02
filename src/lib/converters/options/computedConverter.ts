@@ -4,7 +4,7 @@ import {
   getInitializerProps,
   nonNull,
   storePath,
-} from '../helper'
+} from '../../helper'
 
 export const computedConverter = (
   node: ts.Node,

@@ -56,7 +56,7 @@ export default defineComponent({
     const input = ref('')
     const output = ref('')
     const hasError = ref(false)
-    const templateList = ['classAPI', 'optionsAPI']
+    const templateList = ['optionsAPI', 'classAPI']
     const selectedTemplate = ref(templateList[0])
     watch(
       selectedTemplate,

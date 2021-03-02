@@ -1,5 +1,5 @@
 import ts from 'typescript'
-import { nonNull } from '../helper'
+import { nonNull } from '../../helper'
 
 export const propReader = (
   node: ts.Node,
