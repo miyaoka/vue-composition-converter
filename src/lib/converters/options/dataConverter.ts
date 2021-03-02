@@ -1,5 +1,5 @@
 import ts from 'typescript'
-import { ConvertedExpression, getNodeByKind } from '../helper'
+import { ConvertedExpression, getNodeByKind } from '../../helper'
 
 export const dataConverter = (
   node: ts.Node,

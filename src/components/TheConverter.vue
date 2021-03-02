@@ -1,7 +1,14 @@
 <template>
   <div class="flex flex-row h-full">
     <div class="flex-1 flex flex-col">
-      <h2>Input: (Vue2 / Options API)</h2>
+      <div class="flex flex-row">
+        <h2>Input: (Vue2)</h2>
+        <select v-model="selectedTemplate" class="border">
+          <option v-for="templateItem in templateKeys" :key="templateItem">
+            {{ templateItem }}
+          </option>
+        </select>
+      </div>
       <textarea
         class="border w-full text-xs leading-3 flex-1 p-2"
         :class="{ hasError }"
@@ -32,7 +39,8 @@
 <script lang="ts">
 import { ref, defineComponent, watch } from 'vue'
 import { convertSrc } from '../lib/converter'
-import text from '../assets/sampleSFC.txt?raw'
+import classApi from '../assets/template/classAPI.txt?raw'
+import optionsApi from '../assets/template/optionsAPI.txt?raw'
 
 import prettier from 'prettier'
 // @ts-ignore
@@ -45,11 +53,33 @@ import typescript from 'highlight.js/lib/languages/typescript'
 hljs.registerLanguage('typescript', typescript)
 import 'highlight.js/styles/gruvbox-dark.css'
 
+const templateMap = new Map([
+  ['optionsAPI', optionsApi],
+  ['classAPI', classApi],
+])
 export default defineComponent({
   setup: () => {
-    const input = ref(text)
+    const input = ref('')
     const output = ref('')
     const hasError = ref(false)
+    const templateKeys = Array.from(templateMap.keys())
+
+    const selectedTemplate = ref(templateKeys[0])
+    watch(
+      selectedTemplate,
+      async () => {
+        hasError.value = false
+        try {
+          input.value = templateMap.get(selectedTemplate.value) || ''
+          console.log(input.value)
+        } catch (err) {
+          hasError.value = true
+          console.error(err)
+        }
+      },
+      { immediate: true }
+    )
+
     watch(
       input,
       () => {
@@ -70,7 +100,7 @@ export default defineComponent({
       },
       { immediate: true }
     )
-    return { input, output, hasError }
+    return { input, output, hasError, templateKeys, selectedTemplate }
   },
 })
 </script>

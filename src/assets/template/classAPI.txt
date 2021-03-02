@@ -1,0 +1,82 @@
+<template>
+  <div class="sampleClass">
+    {{ strData }}
+  </div>
+</template>
+
+<script lang="ts">
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import OtherComponent from './OtherComponent.vue'
+
+@Component({
+  components: {
+    OtherComponent
+  },
+})
+export default class SomeComponent extends Vue {
+  // Declared as component data
+  count:number = 0
+  firstName = ''
+  lastName = ''
+
+  // vue-property-decorator
+  @Prop(Number) readonly propA: number | undefined
+  @Prop({ default: 10 }) readonly propB!: number
+  @Prop([String, Boolean]) readonly propC: string | boolean | undefined
+
+
+  @Prop()
+  value: string
+  @Prop({ default: '#f00', required: false })
+  color: string
+
+  @Watch('value', { immediate: true })
+  onValueChange(val, oldVal) {
+    console.log(val)
+  }
+
+  // See Hooks section for details about `data` hook inside class.
+  data() {
+    return {
+      // `hello` will be reactive as it is declared via `data` hook.
+      hello: undefined
+    }
+  }
+
+  // Declared as component method
+  async increment():number {
+    this.count++
+  }
+
+  // Declared as computed property getter
+  get double():number{
+    return count * 2
+  }
+  get name() {
+    return this.firstName + ' ' + this.lastName
+  }
+
+  // Declared as computed property setter
+  set name(value) {
+    const splitted = value.split(' ')
+    this.firstName = splitted[0]
+    this.lastName = splitted[1] || ''
+  }
+
+  // Declare mounted lifecycle hook
+  mounted() {
+    console.log('mounted')
+  }
+
+  // Declare render function
+  render() {
+    return <div>Hello World!</div>
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.sampleClass {
+  display: flex;
+}
+</style>

@@ -1,5 +1,5 @@
 import ts from 'typescript'
-import { ConvertedExpression, getMethodExpression } from '../helper'
+import { ConvertedExpression, getMethodExpression } from '../../helper'
 
 export const lifecycleConverter = (
   node: ts.Node,

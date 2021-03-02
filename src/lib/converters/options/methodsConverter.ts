@@ -3,7 +3,7 @@ import {
   ConvertedExpression,
   getInitializerProps,
   getMethodExpression,
-} from '../helper'
+} from '../../helper'
 
 export const methodsConverter = (
   node: ts.Node,
