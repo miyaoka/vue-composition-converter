@@ -20,9 +20,14 @@ export default class SomeComponent extends Vue {
   lastName = ''
 
   // vue-property-decorator
+  @Prop(Number) readonly propA: number | undefined
+  @Prop({ default: 10 }) readonly propB!: number
+  @Prop([String, Boolean]) readonly propC: string | boolean | undefined
+
+
   @Prop()
   value: string
-  @Prop({ default: '#f00' })
+  @Prop({ default: '#f00', required: false })
   color: string
 
   @Watch('value', { immediate: true })

@@ -159,26 +159,19 @@ export const convertSrc = (input: string): string => {
       ...lifecycleProps
     )
 
-    const props2 = Array.from(classProps.propsMap.entries()).reduce(
-      (acc, [key, value]) => {
-        const { type, args } = value
-        return {
-          ...acc,
-          [key]: args.join('') || '{}',
-        }
-      },
-      {}
+    const classPropsNode = ts.factory.createPropertyAssignment(
+      'props',
+      ts.factory.createObjectLiteralExpression(
+        Array.from(classProps.propsMap.entries()).map(([key, value]) => {
+          const { options } = value
+          return ts.factory.createPropertyAssignment(
+            key,
+            ts.factory.createIdentifier(options)
+          )
+        })
+      )
     )
-
-    // const propsState = ts.createSourceFile(
-    //   '',
-    //   `props: ${JSON.stringify(props2)}`,
-    //   ts.ScriptTarget.Latest
-    // ).statements as any
-
-    // console.log(props2)
-
-    otherProps.push(...classProps.otherProps)
+    otherProps.push(...classProps.otherProps, classPropsNode)
 
     const newSrc = ts.factory.createSourceFile(
       [
@@ -195,7 +188,7 @@ export const convertSrc = (input: string): string => {
     return printer.printFile(newSrc)
   }
 
-  if (!exportAssignNode) throw new Error('no export node1')
+  if (!exportAssignNode) throw new Error('no export node')
 }
 
 const parseClassNode = (
@@ -287,12 +280,18 @@ const parseClassNode = (
       const type = member.type?.getText(sourceFile)
       if (decorators) {
         // props
-        const decorator = getDecoratorParams(decorators[0], sourceFile)
+
+        const decorator = parsePropDecorator(decorators[0], sourceFile)
         if (!(decorator && decorator.decoratorName === 'Prop')) return
 
+        const options = decorator.options || {}
         propsMap.set(name, {
-          type,
-          args: decorator.args,
+          options: JSON.stringify({
+            ...options,
+            ...{
+              type: type == null ? decorator.type : tsTypeToVuePropType(type),
+            },
+          }),
         })
         return
       }
@@ -316,6 +315,62 @@ const parseClassNode = (
   }
 }
 
+const tsTypeToVuePropType = (type: string) => {
+  /* vue type
+  String
+  Number
+  Boolean
+  Array
+  Object
+  Date
+  Function
+  Symbol
+  */
+
+  if (/^(string|number|boolean)$/.test(type)) {
+    return type.charAt(0).toUpperCase() + type.slice(1)
+  }
+
+  if (/.+\[\]$/.test(type)) {
+    return `Array as Proptype<${type}>`
+  }
+
+  return `Object as PropType<${type}>`
+}
+
+const parsePropDecorator = (
+  decorator: ts.Decorator,
+  sourceFile: ts.SourceFile
+) => {
+  if (!ts.isCallExpression(decorator.expression)) return null
+
+  const callExpression = decorator.expression
+  const decoratorName = callExpression.expression.getText(sourceFile)
+
+  let type = ''
+  let options = {}
+  callExpression.arguments.forEach((arg) => {
+    if (ts.isObjectLiteralExpression(arg)) {
+      options = arg.properties.reduce((acc, prop) => {
+        if (!ts.isPropertyAssignment(prop)) return acc
+        return {
+          ...acc,
+          [prop.name.getText(sourceFile)]: prop.initializer.getText(sourceFile),
+        }
+      }, {})
+
+      console.log(options)
+    } else {
+      type = arg.getText(sourceFile)
+    }
+  })
+
+  return {
+    decoratorName,
+    type,
+    options,
+  }
+}
 const getDecoratorParams = (
   decorator: ts.Decorator,
   sourceFile: ts.SourceFile
