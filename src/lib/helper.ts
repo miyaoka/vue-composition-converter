@@ -22,6 +22,7 @@ export const lifecycleNameMap: Map<string, string | undefined> = new Map([
   ['mounted', 'onMounted'],
   ['beforeUpdate', 'onBeforeUpdate'],
   ['updated', 'onUpdated'],
+  ['beforeUnmount', 'onBeforeUnmount'],
   ['beforeDestroy', 'onBeforeUnmount'],
   ['destroyed', 'onUnmounted'],
   ['errorCaptured', 'onErrorCaptured'],
