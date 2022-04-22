@@ -1,9 +1,9 @@
-import ts from 'typescript'
+import ts from "typescript";
 import {
   ConvertedExpression,
   getInitializerProps,
   getMethodExpression,
-} from '../../helper'
+} from "../../helper";
 
 export const methodsConverter = (
   node: ts.Node,
@@ -11,7 +11,7 @@ export const methodsConverter = (
 ): ConvertedExpression[] => {
   return getInitializerProps(node)
     .map((prop) => {
-      return getMethodExpression(prop, sourceFile)
+      return getMethodExpression(prop, sourceFile);
     })
-    .flat()
-}
+    .flat();
+};

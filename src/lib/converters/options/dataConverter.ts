@@ -1,23 +1,23 @@
-import ts from 'typescript'
-import { ConvertedExpression, getNodeByKind } from '../../helper'
+import ts from "typescript";
+import { ConvertedExpression, getNodeByKind } from "../../helper";
 
 export const dataConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
 ): ConvertedExpression[] => {
-  const objNode = getNodeByKind(node, ts.SyntaxKind.ObjectLiteralExpression)
+  const objNode = getNodeByKind(node, ts.SyntaxKind.ObjectLiteralExpression);
 
-  if (!(objNode && ts.isObjectLiteralExpression(objNode))) return []
+  if (!(objNode && ts.isObjectLiteralExpression(objNode))) return [];
   return objNode.properties
     .map((prop) => {
-      if (!ts.isPropertyAssignment(prop)) return
-      const name = prop.name.getText(sourceFile)
-      const text = prop.initializer.getText(sourceFile)
+      if (!ts.isPropertyAssignment(prop)) return;
+      const name = prop.name.getText(sourceFile);
+      const text = prop.initializer.getText(sourceFile);
       return {
-        use: 'ref',
+        use: "ref",
         expression: `const ${name} = ref(${text})`,
         returnNames: [name],
-      }
+      };
     })
-    .filter((item): item is NonNullable<typeof item> => item != null)
-}
+    .filter((item): item is NonNullable<typeof item> => item != null);
+};
