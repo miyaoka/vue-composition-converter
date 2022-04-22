@@ -37,72 +37,68 @@
 </template>
 
 <script lang="ts">
-import { ref, defineComponent, watch } from 'vue'
-import { convertSrc } from '../lib/converter'
-import classApi from '../assets/template/classAPI.txt?raw'
-import optionsApi from '../assets/template/optionsAPI.txt?raw'
+import { ref, defineComponent, watch } from "vue";
+import { convertSrc } from "../lib/converter";
+import classApi from "../assets/template/classAPI.txt?raw";
+import optionsApi from "../assets/template/optionsAPI.txt?raw";
 
-import prettier from 'prettier'
-// @ts-ignore
-import parserTypeScript from 'prettier/esm/parser-typescript.mjs'
-
-// @ts-ignore
-import hljs from 'highlight.js/lib/core'
-// @ts-ignore
-import typescript from 'highlight.js/lib/languages/typescript'
-hljs.registerLanguage('typescript', typescript)
-import 'highlight.js/styles/gruvbox-dark.css'
+import prettier from "prettier";
+import parserTypeScript from "prettier/parser-typescript";
+import hljs from "highlight.js/lib/core";
+import typescript from "highlight.js/lib/languages/typescript";
+hljs.registerLanguage("typescript", typescript);
+import "highlight.js/styles/atom-one-dark.css";
 
 const templateMap = new Map([
-  ['optionsAPI', optionsApi],
-  ['classAPI', classApi],
-])
+  ["optionsAPI", optionsApi],
+  ["classAPI", classApi],
+]);
 export default defineComponent({
   setup: () => {
-    const input = ref('')
-    const output = ref('')
-    const hasError = ref(false)
-    const templateKeys = Array.from(templateMap.keys())
+    const input = ref("");
+    const output = ref("");
+    const hasError = ref(false);
+    const templateKeys = Array.from(templateMap.keys());
 
-    const selectedTemplate = ref(templateKeys[0])
+    const selectedTemplate = ref(templateKeys[0]);
     watch(
       selectedTemplate,
       async () => {
-        hasError.value = false
+        hasError.value = false;
         try {
-          input.value = templateMap.get(selectedTemplate.value) || ''
-          console.log(input.value)
+          input.value = templateMap.get(selectedTemplate.value) || "";
+          console.log(input.value);
         } catch (err) {
-          hasError.value = true
-          console.error(err)
+          hasError.value = true;
+          console.error(err);
         }
       },
       { immediate: true }
-    )
+    );
 
     watch(
       input,
       () => {
         try {
-          hasError.value = false
-          const outputText = convertSrc(input.value)
+          hasError.value = false;
+          const outputText = convertSrc(input.value);
           const prettifiedHtml = hljs.highlightAuto(
             prettier.format(outputText, {
-              parser: 'typescript',
+              parser: "typescript",
               plugins: [parserTypeScript],
             })
-          ).value
-          output.value = prettifiedHtml
+          ).value;
+          output.value = prettifiedHtml;
         } catch (err) {
-          hasError.value = true
-          console.error(err)
+          hasError.value = true;
+          console.error(err);
         }
       },
       { immediate: true }
-    )
-    return { input, output, hasError, templateKeys, selectedTemplate }
+    );
+    return { input, output, hasError, templateKeys, selectedTemplate };
   },
-})
+});
 </script>
 <style scoped>
 .hasError {
