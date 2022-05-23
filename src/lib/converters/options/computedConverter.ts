@@ -94,6 +94,12 @@ export const computedConverter = (
 
         const namespaceText = namespace.text;
 
+        if (ts.isFunctionExpression(mapObject)) {
+          throw new Error(
+            "Function as the argument of mapState or mapGetters is not currently supported"
+          );
+        }
+
         if (ts.isArrayLiteralExpression(mapObject)) {
           return mapArrayConverter(mapName, namespaceText, mapObject);
         }
