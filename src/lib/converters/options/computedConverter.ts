@@ -48,13 +48,13 @@ export const computedConverter = (
       } else if (ts.isMethodDeclaration(prop)) {
         // computed method
         const { name: propName, body, type } = prop;
-        const typeName = type ? `:${type.getText(sourceFile)}` : "";
+        const typeName = type ? `<${type.getText(sourceFile)}>` : "";
         const block = body?.getText(sourceFile) || "{}";
         const name = propName.getText(sourceFile);
 
         return {
           use: "computed",
-          expression: `const ${name} = computed(()${typeName} => ${block})`,
+          expression: `const ${name} = computed${typeName}(() => ${block})`,
           returnNames: [name],
         };
       } else if (ts.isPropertyAssignment(prop)) {
