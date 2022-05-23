@@ -31,7 +31,10 @@ export const computedConverter = (
             return names.map(({ text: name }) => {
               return {
                 use: "computed",
-                expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
+                expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText.replaceAll(
+                  "/",
+                  "."
+                )}.${name})`,
                 returnNames: [name],
               };
             });
