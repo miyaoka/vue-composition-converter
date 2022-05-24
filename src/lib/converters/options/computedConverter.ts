@@ -18,7 +18,7 @@ const mapArrayConverter = (
       return names.map(({ text: name }) => {
         return {
           use: "computed",
-          expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
+          expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}${name})`,
           returnNames: [name],
         };
       });
@@ -26,7 +26,7 @@ const mapArrayConverter = (
       return names.map(({ text: name }) => {
         return {
           use: "computed",
-          expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
+          expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}${name}'])`,
           returnNames: [name],
         };
       });
@@ -64,13 +64,13 @@ const mapObjectConverter = (
         case "mapState":
           return {
             use: "computed",
-            expression: `const ${name.text} = computed(() => ${storePath}.state.${namespaceText}.${initializer.text})`,
+            expression: `const ${name.text} = computed(() => ${storePath}.state.${namespaceText}${initializer.text})`,
             returnNames: [name.text],
           };
         case "mapGetters":
           return {
             use: "computed",
-            expression: `const ${name.text} = computed(() => ${storePath}.getters['${namespaceText}/${initializer.text}'])`,
+            expression: `const ${name.text} = computed(() => ${storePath}.getters['${namespaceText}${initializer.text}'])`,
             returnNames: [name.text],
           };
       }
@@ -91,23 +91,34 @@ export const computedConverter = (
 
         if (!ts.isIdentifier(expression)) return;
         const mapName = expression.text;
-        const [namespace, mapObject] = args;
-        if (!ts.isStringLiteral(namespace)) return;
 
-        const namespaceText = namespace.text;
+        let namespace: string, namespaceText: string, mapObject: ts.Node;
+        // If first argument is a namespace.
+        if (ts.isStringLiteral(args[0])) {
+          namespace = args[0].text;
+          namespaceText =
+            mapName === "mapGetters"
+              ? `${namespace}/`
+              : `${namespace.replaceAll("/", ".")}.`;
+          mapObject = args[1];
+        } else {
+          namespace = "";
+          namespaceText = "";
+          mapObject = args[0];
+        }
 
         if (ts.isFunctionExpression(mapObject)) {
           throw new Error(
             "Function as the argument of mapState or mapGetters is not currently supported"
           );
         }
-
         if (ts.isArrayLiteralExpression(mapObject)) {
           return mapArrayConverter(mapName, namespaceText, mapObject);
         }
         if (ts.isObjectLiteralExpression(mapObject)) {
           return mapObjectConverter(mapName, namespaceText, mapObject);
         }
+
         return null;
       } else if (ts.isMethodDeclaration(prop)) {
         // computed method
