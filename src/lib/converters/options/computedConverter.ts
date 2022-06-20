@@ -6,6 +6,76 @@ import {
   storePath,
 } from "../../helper";
 
+const mapArrayConverter = (
+  mapName: string,
+  namespaceText: string,
+  mapArray: ts.ArrayLiteralExpression
+) => {
+  const names = mapArray.elements as ts.NodeArray<ts.StringLiteral>;
+
+  switch (mapName) {
+    case "mapState":
+      return names.map(({ text: name }) => {
+        return {
+          use: "computed",
+          expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
+          returnNames: [name],
+        };
+      });
+    case "mapGetters":
+      return names.map(({ text: name }) => {
+        return {
+          use: "computed",
+          expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
+          returnNames: [name],
+        };
+      });
+  }
+};
+
+const mapObjectConverter = (
+  mapName: string,
+  namespaceText: string,
+  mapObject: ts.ObjectLiteralExpression
+) => {
+  const props = mapObject.properties as ts.NodeArray<ts.PropertyAssignment>;
+
+  return props.map((prop) => {
+    const name = prop.name as ts.Identifier;
+    const initializer = prop.initializer;
+
+    // function values are not currently supported.
+    if (
+      ts.isFunctionExpression(initializer) ||
+      ts.isArrowFunction(initializer)
+    ) {
+      throw new Error(
+        "Function value in a map object is not currently supported."
+      );
+    }
+
+    // values should be a string.
+    if (!ts.isStringLiteral(initializer)) {
+      throw new Error("Values of a map object should be strings");
+    }
+
+    switch (mapName) {
+      case "mapState":
+        return {
+          use: "computed",
+          expression: `const ${name.text} = computed(() => ${storePath}.state.${namespaceText}.${initializer.text})`,
+          returnNames: [name.text],
+        };
+      case "mapGetters":
+        return {
+          use: "computed",
+          expression: `const ${name.text} = computed(() => ${storePath}.getters['${namespaceText}/${initializer.text}'])`,
+          returnNames: [name.text],
+        };
+    }
+  });
+};
+
 export const computedConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
@@ -19,30 +89,22 @@ export const computedConverter = (
 
         if (!ts.isIdentifier(expression)) return;
         const mapName = expression.text;
-        const [namespace, mapArray] = args;
+        const [namespace, mapObject] = args;
         if (!ts.isStringLiteral(namespace)) return;
-        if (!ts.isArrayLiteralExpression(mapArray)) return;
 
         const namespaceText = namespace.text;
-        const names = mapArray.elements as ts.NodeArray<ts.StringLiteral>;
 
-        switch (mapName) {
-          case "mapState":
-            return names.map(({ text: name }) => {
-              return {
-                use: "computed",
-                expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
-                returnNames: [name],
-              };
-            });
-          case "mapGetters":
-            return names.map(({ text: name }) => {
-              return {
-                use: "computed",
-                expression: `const ${name} = computed(() => ${storePath}.getters['${namespaceText}/${name}'])`,
-                returnNames: [name],
-              };
-            });
+        if (ts.isFunctionExpression(mapObject)) {
+          throw new Error(
+            "Function as the argument of mapState or mapGetters is not currently supported"
+          );
+        }
+
+        if (ts.isArrayLiteralExpression(mapObject)) {
+          return mapArrayConverter(mapName, namespaceText, mapObject);
+        }
+        if (ts.isObjectLiteralExpression(mapObject)) {
+          return mapObjectConverter(mapName, namespaceText, mapObject);
         }
         return null;
       } else if (ts.isMethodDeclaration(prop)) {
