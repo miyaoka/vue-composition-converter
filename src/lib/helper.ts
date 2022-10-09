@@ -221,3 +221,7 @@ export const getSetupStatements = (setupProps: ConvertedExpression[]) => {
     )
     .flat();
 };
+
+export const containUnicodeChar = (str: string) => {
+  return /\\u.{4}/gi.test(str);
+};
