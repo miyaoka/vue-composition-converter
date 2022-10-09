@@ -1,5 +1,9 @@
 import ts from "typescript";
-import { getExportStatement, getImportStatement } from "../helper";
+import {
+  getExportStatement,
+  getImportStatement,
+  containUnicodeChar,
+} from "../helper";
 import { convertOptions } from "./options/optionsConverter";
 
 export const convertOptionsApi = (sourceFile: ts.SourceFile) => {
@@ -20,5 +24,9 @@ export const convertOptionsApi = (sourceFile: ts.SourceFile) => {
     sourceFile.flags
   );
   const printer = ts.createPrinter();
-  return printer.printFile(newSrc);
+  const content = printer.printFile(newSrc);
+
+  return containUnicodeChar(content)
+    ? unescape(content.replace(/\\u/g, "%u"))
+    : content;
 };

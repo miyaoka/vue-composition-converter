@@ -4,6 +4,7 @@ import {
   getExportStatement,
   getImportStatement,
   lifecycleNameMap,
+  containUnicodeChar,
 } from "../helper";
 import { convertOptions } from "./options/optionsConverter";
 
@@ -141,7 +142,11 @@ export const convertClass = (
     sourceFile.flags
   );
   const printer = ts.createPrinter();
-  return printer.printFile(newSrc);
+  const content = printer.printFile(newSrc);
+
+  return containUnicodeChar(content)
+    ? unescape(content.replace(/\\u/g, "%u"))
+    : content;
 };
 
 const parseClassNode = (
