@@ -32,6 +32,7 @@ export const computedConverter = (
         const names = mapArray.elements as any
 
         switch (mapName) {
+          case 'mapWritableState':
           case 'mapState': {
             const spread = names.map((el) => el.text)
 
