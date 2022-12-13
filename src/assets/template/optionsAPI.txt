@@ -92,7 +92,7 @@ export default {
       )
     },
   },
-
+  mixins: ["something"],
   methods: {
         ...mapActions(useGlobalStore, [
       'doMoreTHINGS',

@@ -1,26 +1,26 @@
-import ts from "typescript";
-import { getExportStatement, getImportStatement } from "../helper";
-import { convertOptions } from "./options/optionsConverter";
+import ts from 'typescript'
+import { getExportStatement, getImportStatement } from '../helper'
+import { convertOptions } from './options/optionsConverter'
 
 export const convertOptionsApi = (sourceFile: ts.SourceFile) => {
-  const options = convertOptions(sourceFile);
+  const options = convertOptions(sourceFile)
   if (!options) {
-    throw new Error("invalid options");
+    throw new Error('invalid options')
   }
 
-  const { setupProps, propNames, otherProps } = options;
+  const { setupProps, propNames, otherProps } = options
 
   const newSrc = ts.factory.createSourceFile(
     [
       ...getImportStatement(setupProps),
       ...sourceFile.statements.filter((state) => !ts.isExportAssignment(state)),
-      ts.factory.createIdentifier("\n"),
-      ...getExportStatement(setupProps, propNames, otherProps).statements,
+      ts.factory.createIdentifier('\n'),
+      ...getExportStatement(setupProps, propNames, otherProps),
     ],
     sourceFile.endOfFileToken,
     sourceFile.flags
-  );
+  )
 
-  const printer = ts.createPrinter();
-  return printer.printFile(newSrc);
-};
+  const printer = ts.createPrinter()
+  return printer.printFile(newSrc)
+}
