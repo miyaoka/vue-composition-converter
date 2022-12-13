@@ -28,7 +28,6 @@ watch(
     hasError.value = false;
     try {
       input.value = templateMap.get(selectedTemplate.value) || "";
-      console.log(input.value);
     } catch (err) {
       hasError.value = true;
       console.error(err);

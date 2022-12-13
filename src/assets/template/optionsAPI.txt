@@ -1,102 +1,114 @@
+<!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="sampleClass">
-    {{ strData }}
+  <div class="p-0 mt-4">
+    <div class="panel-switch-buttons mt-4">
+      <span>
+        <v-btn
+          data-testid="btn-panel-switch-next"
+          block
+          class="mb-3 sm:mb-0"
+          depressed
+          color="primary"
+          :disabled="nextBtnDisabled"
+          :loading="nextBtnLoading || nextLoading"
+          tabindex="1"
+          large
+          @click="nextClickMethod"
+        >
+          {{ localNextStepBtnTitle }}
+          <v-icon v-if="!hideNextChevron" right>chevron_right</v-icon>
+        </v-btn>
+      </span>
+      <span v-if="showBackButton">
+        <v-btn
+          depressed
+          block
+          large
+          class="md:mr-4 mt-3"
+          color="gray"
+          tabindex="2"
+          :disabled="nextBtnLoading || nextLoading"
+          @click="prevClickMethod"
+        >
+          <v-icon left>chevron_left</v-icon>
+          {{ previousBtnTitle }}
+        </v-btn>
+      </span>
+    </div>
+
+    <v-alert v-if="error" class="my-3" text color="error">
+      <span v-html="error" />
+    </v-alert>
   </div>
 </template>
 
-<script lang="ts">
-import Vue from 'vue'
-import { mapState, mapGetters, mapActions } from 'vuex'
-import Comp1 from '@/components/Comp1.vue'
+<script>
+import { useGlobalStore, mapState } from '@/stores'
 
-export default Vue.extend({
-  name: 'SampleComp',
-  components: {
-    Comp1,
-  },
+export default {
+  name: 'PanelSwitchButtons',
+
   props: {
-    prop1: {
-      type: Object,
-      required: true,
+    nextBtnText: {
+      type: String,
+      default: '',
     },
+    nextBtnLoading: Boolean,
+    nextBtnDisabled: Boolean,
+    hidePrev: Boolean,
+    hideNextChevron: Boolean,
   },
+
   data() {
     return {
-      strData: 'str',
-      numData: 10,
-      boolData: true,
-      objData: { a: 1 },
-      firstName: 'firstName',
-      lastName: 'lastName',
+      nextLoading: false,
+      error: null,
     }
   },
-  computed: {
-    ...mapGetters('module1', ['getter1']),
-    ...mapState('module2', ['state1']),
-    doubledNum(): number {
-      return this.numData * 2
-    },
-    fullName: {
-      get(): string {
-        return `${this.firstName} ${this.lastName}`
-      },
-      set(val: string) {
-        const [first, last] = val.split(' ')
-        this.firstName = first
-        this.lastName = last
-      },
-    },
-  },
-  watch: {
-    numData(curr, prev) {
-      console.log(`num: ${prev} -> ${curr}`)
-    },
-    '$route.params'() {
-      console.log('routeParams changed')
-    },
-    prop1: {
-      handler(val) {
-        this.objData = val
-      },
-      immediate: true,
-      deep: true,
-    },
-  },
-  async created(){
-    console.log('async created')
-    await this.asyncMethod()
-  },
-  mounted() {
-    console.log('mounted')
-    this.$nextTick(()=> {
-      console.log(this.prop1)
-    })
-    this.strData = this.$store.state.aaa
-  },
-  destroyed(){
-    console.log('destroyed')
-  },
-  methods: {
-    ...mapActions('module3', ['action1']),
-    increment():number {
-      return this.numData++
-    },
-    async asyncMethod(args) {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      this.action1(args)
-    },
-  },
-  customMethod() {
-    console.log('custom')
-  },
-  customBlock: {
-    rules: ['aaa']
-  },
-})
-</script>
 
-<style lang="scss" scoped>
-.sampleClass {
-  display: flex;
+  computed: {
+    ...mapState(useGlobalStore, [
+      'prevPanel',
+      'previousBtnTitle',
+      'getAppConfig',
+      'hidePrevBtn',
+      'nextStepBtnTitle',
+      'apConfigBtnText',
+    ]),
+    localNextStepBtnTitle() {
+      return this.apConfigBtnText || this.nextBtnText || this.nextStepBtnTitle
+    },
+    localHidePrevBtn() {
+      if (this.hidePrev === true) {
+        return true
+      } else return this.hidePrevBtn
+    },
+    showBackButton() {
+      return this.prevPanel
+      return (
+        this.getAppConfig.enable_back_button &&
+        !this.localHidePrevBtn &&
+        !this.prevPanel?.toLowerCase().startsWith('auth')
+      )
+    },
+  },
+
+  methods: {
+        ...mapActions(useGlobalStore, [
+      'doMoreTHINGS',
+    ]),
+    async nextClickMethod() {
+      this.doMoreTHINGS()
+      this.$refs.something.lotsOfThings = true
+      this.error = null
+      this.nextLoading = true
+      this.$emit('next')
+    },
+    async prevClickMethod() {
+      console.log(this.nextBtnText)
+      this.error = null
+      this.$emit('previous')
+    },
+  },
 }
-</style>
+</script>

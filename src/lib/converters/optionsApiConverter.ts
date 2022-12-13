@@ -14,11 +14,13 @@ export const convertOptionsApi = (sourceFile: ts.SourceFile) => {
     [
       ...getImportStatement(setupProps),
       ...sourceFile.statements.filter((state) => !ts.isExportAssignment(state)),
-      getExportStatement(setupProps, propNames, otherProps),
+      ts.factory.createIdentifier("\n"),
+      ...getExportStatement(setupProps, propNames, otherProps).statements,
     ],
     sourceFile.endOfFileToken,
     sourceFile.flags
   );
+
   const printer = ts.createPrinter();
   return printer.printFile(newSrc);
 };

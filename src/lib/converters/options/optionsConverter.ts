@@ -48,6 +48,7 @@ const _convertOptions = (
   exportObject: ts.ObjectLiteralExpression,
   sourceFile: ts.SourceFile
 ) => {
+  const trueProps: ts.ObjectLiteralElementLike[] = [];
   const otherProps: ts.ObjectLiteralElementLike[] = [];
   const dataProps: ConvertedExpression[] = [];
   const computedProps: ConvertedExpression[] = [];
@@ -75,24 +76,44 @@ const _convertOptions = (
         lifecycleProps.push(...lifecycleConverter(prop, sourceFile));
         break;
 
-      default:
-        if (name === "props") {
-          propNames.push(...propReader(prop, sourceFile));
-        }
+      case name === "props":
+        trueProps.push(prop);
+        propNames.push(...propReader(prop, sourceFile));
+        break;
 
+      case name === "name":
+        break;
+
+      default:
         // 該当しないものはそのままにする
         otherProps.push(prop);
         break;
     }
   });
 
+  // there has to be a better way to do this
+  const printer = ts.createPrinter();
+  let p: string[] | string = printer
+    .printFile(
+      ts.factory.createSourceFile(
+        [ts.factory.createObjectLiteralExpression(trueProps)],
+        undefined,
+        undefined
+      )
+    )
+    .replace("{ props:", "")
+    .split(" ");
+  p.pop();
+
+  p = p.length ? p.join(" ") : "";
+
   const propsRefProps: ConvertedExpression[] =
     propNames.length === 0
       ? []
       : [
           {
-            use: "toRefs",
-            expression: `const { ${propNames.join(",")} } = toRefs(props)`,
+            use: "props",
+            expression: `const props = defineProps(${p})`,
             returnNames: propNames,
           },
         ];

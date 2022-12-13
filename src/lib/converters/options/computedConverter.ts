@@ -6,6 +6,13 @@ import {
   storePath,
 } from "../../helper";
 
+const snakeCaseToCamelCase = (str: string) =>
+  str
+    .toLowerCase()
+    .replace(/([-_][a-z])/g, (group) =>
+      group.toUpperCase().replace("-", "").replace("_", "")
+    );
+
 export const computedConverter = (
   node: ts.Node,
   sourceFile: ts.SourceFile
@@ -20,21 +27,38 @@ export const computedConverter = (
         if (!ts.isIdentifier(expression)) return;
         const mapName = expression.text;
         const [namespace, mapArray] = args;
-        if (!ts.isStringLiteral(namespace)) return;
-        if (!ts.isArrayLiteralExpression(mapArray)) return;
 
-        const namespaceText = namespace.text;
-        const names = mapArray.elements as ts.NodeArray<ts.StringLiteral>;
+        const namespaceText = namespace.text as any;
+        const names = mapArray.elements as any;
 
         switch (mapName) {
-          case "mapState":
-            return names.map(({ text: name }) => {
-              return {
-                use: "computed",
-                expression: `const ${name} = computed(() => ${storePath}.state.${namespaceText}.${name})`,
-                returnNames: [name],
-              };
-            });
+          case "mapState": {
+            const spread = names.map((el) => el.text);
+
+            const storeName = snakeCaseToCamelCase(
+              namespaceText
+                .replace(/([A-Z])/g, "_$1")
+                .toUpperCase()
+                .replace("USE_", "")
+            );
+
+            return [
+              {
+                use: "store",
+                expression: `const ${storeName} = ${namespaceText}()`,
+                returnNames: [storeName],
+                pkg: "",
+              },
+              {
+                use: "storeToRefs",
+                expression: `const { ${spread.join(
+                  ", "
+                )} } = storeToRefs(${storeName})`,
+                returnNames: spread,
+                pkg: "pinia",
+              },
+            ];
+          }
           case "mapGetters":
             return names.map(({ text: name }) => {
               return {

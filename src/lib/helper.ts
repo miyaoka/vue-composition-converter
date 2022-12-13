@@ -13,7 +13,17 @@ export type ConvertedExpression = {
   expression: string;
   returnNames?: string[];
   use?: string;
+  isBreak?: boolean;
+  pkg?: string;
+  sort?: number | undefined;
 };
+
+const snakeCaseToCamelCase = (str: string) =>
+  str
+    .toLowerCase()
+    .replace(/([-_][a-z])/g, (group) =>
+      group.toUpperCase().replace("-", "").replace("_", "")
+    );
 
 export const lifecycleNameMap: Map<string, string | undefined> = new Map([
   ["beforeCreate", undefined],
@@ -89,7 +99,7 @@ export const getMethodExpression = (
     return [
       {
         returnNames: [name],
-        expression: `const ${name} = ${fn}`,
+        expression: `${async} function ${name} (${parameters})${type} ${body}`,
       },
     ];
   } else if (ts.isSpreadAssignment(node)) {
@@ -99,19 +109,35 @@ export const getMethodExpression = (
     if (!ts.isIdentifier(expression)) return [];
     const mapName = expression.text;
     const [namespace, mapArray] = args;
-    if (!ts.isStringLiteral(namespace)) return [];
-    if (!ts.isArrayLiteralExpression(mapArray)) return [];
+    // if (!ts.isStringLiteral(namespace)) return [];
+    // if (!ts.isArrayLiteralExpression(mapArray)) return [];
 
     const namespaceText = namespace.text;
     const names = mapArray.elements as ts.NodeArray<ts.StringLiteral>;
 
     if (mapName === "mapActions") {
-      return names.map(({ text: name }) => {
-        return {
-          expression: `const ${name} = () => ${storePath}.dispatch('${namespaceText}/${name}')`,
-          returnNames: [name],
-        };
-      });
+      const spread = names.map((el) => el.text).join(", ");
+
+      const storeName = snakeCaseToCamelCase(
+        namespaceText
+          .replace(/([A-Z])/g, "_$1")
+          .toUpperCase()
+          .replace("USE_", "")
+      );
+      return [
+        {
+          use: "store",
+          expression: `const ${storeName} = ${namespaceText}()`,
+          returnNames: [storeName],
+          pkg: "",
+        },
+        {
+          use: "storeToRefs",
+          expression: `const { ${spread} } = ${storeName}`,
+          returnNames: [""],
+          pkg: "pinia",
+        },
+      ];
     }
   }
   return [];
@@ -127,30 +153,76 @@ const contextProps = [
   "emit",
 ];
 
+function getStringFromExpression(str: string) {
+  const reg = /this\.\$emit\((.+)\)/g;
+  const result = reg.exec(str);
+  if (result) {
+    let [, p1] = result;
+    if (p1.includes(",")) {
+      p1 = p1.split(",")[0];
+    }
+    return p1.replace(/'/g, "").replace(/"/g, "").replace(/`/g, "");
+  }
+  return "";
+}
+
 export const replaceThisContext = (
   str: string,
-  refNameMap: Map<string, true>
+  refNameMap: Map<string, true>,
+  propNameMap: Map<string, true>
 ) => {
+  str;
+
   return str
     .replace(/this\.\$(\w+)/g, (_, p1) => {
+      if (p1 === "refs") return "NEW_REF";
+      if (p1 === "emit") return "emit";
       if (contextProps.includes(p1)) return `ctx.${p1}`;
       return `ctx.root.$${p1}`;
     })
     .replace(/this\.([\w-]+)/g, (_, p1) => {
+      if (propNameMap.has(p1)) return `props.${p1}`;
+
       return refNameMap.has(p1) ? `${p1}.value` : p1;
     });
 };
 
 export const getImportStatement = (setupProps: ConvertedExpression[]) => {
   const usedFunctions = [
-    "defineComponent",
-    ...new Set(setupProps.map(({ use }) => use).filter(nonNull)),
+    ...new Set(
+      setupProps
+        .filter((el) => !el.pkg)
+        .map(({ use }) => use)
+        .filter(nonNull)
+    ),
   ];
-  return ts.createSourceFile(
-    "",
-    `import { ${usedFunctions.join(",")} } from '@vue/composition-api'`,
-    ts.ScriptTarget.Latest
-  ).statements;
+
+  const results = [
+    ...ts.createSourceFile(
+      "",
+      `import { ${usedFunctions.join(",")} } from 'vue'`,
+      ts.ScriptTarget.Latest
+    ).statements,
+  ];
+
+  const extraImports = [
+    ...new Set(
+      setupProps
+        .filter((el) => el.pkg)
+        .map(({ use }) => use)
+        .filter(nonNull)
+    ),
+  ];
+  if (extraImports.length)
+    results.push(
+      ...ts.createSourceFile(
+        "",
+        `import { ${extraImports.join(",")} } from 'pinia'`,
+        ts.ScriptTarget.Latest
+      ).statements
+    );
+
+  return results;
 };
 
 export const getExportStatement = (
@@ -158,11 +230,9 @@ export const getExportStatement = (
   propNames: string[],
   otherProps: ts.ObjectLiteralElementLike[]
 ) => {
-  const propsArg = propNames.length === 0 ? "_props" : `props`;
+  const body = ts.factory.createBlock(getSetupStatements(setupProps));
 
-  const setupArgs = [propsArg, "ctx"].map((name) =>
-    ts.factory.createParameterDeclaration(undefined, undefined, undefined, name)
-  );
+  return body;
 
   const setupMethod = ts.factory.createMethodDeclaration(
     undefined,
@@ -171,9 +241,9 @@ export const getExportStatement = (
     "setup",
     undefined,
     undefined,
-    setupArgs,
+    [],
     undefined,
-    ts.factory.createBlock(getSetupStatements(setupProps))
+    body
   );
 
   return ts.factory.createExportAssignment(
@@ -181,43 +251,95 @@ export const getExportStatement = (
     undefined,
     undefined,
     ts.factory.createCallExpression(
-      ts.factory.createIdentifier("defineComponent"),
+      ts.factory.createIdentifier(""),
       undefined,
       [ts.factory.createObjectLiteralExpression([...otherProps, setupMethod])]
     )
   );
 };
 
+const findEmiters = (str: string, emitterSet: Set<string>) => {
+  str;
+  return str.replace(/this\.\$(\w+)/g, (_, p1) => {
+    if (p1 === "emit") {
+      const emitName = getStringFromExpression(str);
+      if (emitName) emitterSet.add(emitName);
+    }
+    return "";
+  });
+};
+
+const sortMap = ["emitter", "props", "store", "ref", "storeToRefs", "computed"];
+
 export const getSetupStatements = (setupProps: ConvertedExpression[]) => {
   // this.prop => prop.valueにする対象
   const refNameMap: Map<string, true> = new Map();
-  setupProps.forEach(({ use, returnNames }) => {
+  const propNameMap: Map<string, true> = new Map();
+  const emitterNameSet: Set<string> = new Set();
+
+  setupProps.forEach(({ expression }) =>
+    findEmiters(expression, emitterNameSet)
+  );
+
+  setupProps.unshift({
+    use: "emitter",
+    expression: `const emit = defineEmits(${JSON.stringify(
+      Array.from(emitterNameSet)
+    )})`,
+  });
+
+  setupProps.forEach((val) => {
+    const { use, returnNames } = val;
+
+    const sortIndex = sortMap.findIndex((val) => val === use);
+    val.sort = sortIndex > -1 ? sortIndex : 99;
     if (
       returnNames != null &&
       use != null &&
-      /^(toRefs|ref|computed)$/.test(use)
+      /^(toRefs|ref|computed|storeToRefs)$/.test(use)
     ) {
       returnNames.forEach((returnName) => {
         refNameMap.set(returnName, true);
       });
+    } else if (returnNames != null && use != null && /^(props)$/.test(use)) {
+      returnNames.forEach((returnName) => {
+        propNameMap.set(returnName, true);
+      });
     }
   });
 
-  const returnPropsStatement = `return {${setupProps
-    .filter((prop) => prop.use !== "toRefs") // ignore spread props
-    .map(({ returnNames }) => returnNames)
-    .filter(nonNull)
-    .flat()
-    .join(",")}}`;
+  const returnPropsStatement = ``;
 
   return [...setupProps, { expression: returnPropsStatement }]
-    .map(
-      ({ expression }) =>
-        ts.createSourceFile(
-          "",
-          replaceThisContext(expression, refNameMap),
-          ts.ScriptTarget.Latest
-        ).statements
+    .sort((a, b): number => {
+      if (typeof b.sort === "number" && typeof a.sort === "number")
+        return a.sort - b.sort;
+      return 0;
+    })
+
+    .filter(
+      (value, index, self) =>
+        index === self.findIndex((t) => t.expression === value.expression)
     )
+    .reduce((pv: ConvertedExpression[], cv: ConvertedExpression) => {
+      const previous = pv[pv.length - 1];
+      if (
+        (previous && cv.sort !== previous.sort) ||
+        cv.use === "computed" ||
+        !cv.use
+      )
+        pv.push({ isBreak: true, expression: "" });
+      pv.push(cv);
+      return pv;
+    }, [])
+    .map(({ expression, isBreak }) => {
+      if (isBreak) return ts.factory.createIdentifier("\n");
+      else
+        return ts.createSourceFile(
+          "",
+          replaceThisContext(expression, refNameMap, propNameMap),
+          ts.ScriptTarget.Latest
+        ).statements;
+    })
     .flat();
 };
