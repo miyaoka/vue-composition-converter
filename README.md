@@ -1,12 +1,14 @@
 # vue-composition-converter
 
-Convert optionsAPI into composition API
+Convert optionsAPI into composition API (script setup w/pinia)
+
+Thanks to https://github.com/miyaoka for the original src code
 
 ## demo
 
-https://vue-composition-converter.vercel.app/
+https://converter.fasulkey.com
 
-## convert options into `setup`
+## convert options into `script setup`
 
 - data, computed, watch, methods, lifecycle, props -> setup()
   - data -> ref()
