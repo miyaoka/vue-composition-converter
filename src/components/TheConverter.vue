@@ -71,7 +71,7 @@ watch(
       ></textarea>
     </div>
     <div class="flex-1 flex flex-col">
-      <h2>Output: (Vue2 / Composition API)</h2>
+      <h2>Output: (Vue2 / Composition API w/pinia)</h2>
       <pre
         class="hljs border w-full text-xs leading-3 flex-1 p-2 whitespace-pre-wrap select-all"
         v-html="output"
