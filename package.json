@@ -1,9 +1,9 @@
 {
   "name": "vue-composition-converter",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "scripts": {
     "dev": "vite --open",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vite build",
     "preview": "vite preview --port 5050",
     "test:unit": "vitest --environment jsdom",
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",

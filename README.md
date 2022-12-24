@@ -6,7 +6,7 @@ Thanks to https://github.com/miyaoka for the original src code
 
 ## demo
 
-https://converter.fasulkey.com
+https://converter.myspace.page
 
 ## convert options into `script setup`
 
