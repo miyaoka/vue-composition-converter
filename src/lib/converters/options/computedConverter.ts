@@ -1,6 +1,7 @@
 import ts from 'typescript'
 import {
   ConvertedExpression,
+  findDescendantArrowFunction,
   getInitializerProps,
   nonNull,
   storePath,
@@ -19,6 +20,8 @@ export const computedConverter = (
 ): ConvertedExpression[] => {
   return getInitializerProps(node)
     .map((prop) => {
+      if (findDescendantArrowFunction(prop))
+        throw new Error('Arrow Functions not allowed as computed properties.')
       if (ts.isSpreadAssignment(prop)) {
         // mapGetters, mapState
         if (!ts.isCallExpression(prop.expression)) return
@@ -77,6 +80,9 @@ export const computedConverter = (
         const block = body?.getText(sourceFile) || '{}'
         const name = propName.getText(sourceFile)
 
+        if (block.includes('this.$emit'))
+          throw new Error('Emit not allowed in computed properties.')
+
         return {
           use: 'computed',
           expression: `const ${name} = computed(()${typeName} => ${block})`,
@@ -88,6 +94,9 @@ export const computedConverter = (
 
         const name = prop.name.getText(sourceFile)
         const block = prop.initializer.getText(sourceFile) || '{}'
+
+        if (block.includes('this.$emit'))
+          throw new Error('Emit not allowed in computed properties.')
 
         return {
           use: 'computed',

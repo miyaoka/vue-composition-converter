@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-v-html -->
 <template>
   <div class="p-0 mt-4">
     <div class="panel-switch-buttons mt-4">
@@ -61,8 +60,11 @@ export default {
 
   data() {
     return {
+      dupItem: true,
       nextLoading: false,
       error: null,
+      selectedConfig: false,
+      insertionType: true
     }
   },
 
@@ -75,6 +77,10 @@ export default {
       'nextStepBtnTitle',
       'apConfigBtnText',
     ]),
+    // arrowComputed: () => {
+    //   return this.prop
+    // },
+    // ^ this computed property should error. 
     localNextStepBtnTitle() {
       return this.apConfigBtnText || this.nextBtnText || this.nextStepBtnTitle
     },
@@ -84,7 +90,7 @@ export default {
       } else return this.hidePrevBtn
     },
     showBackButton() {
-      return this.prevPanel
+      if (this.hidePrev) return this.prevPanel
       return (
         this.getAppConfig.enable_back_button &&
         !this.localHidePrevBtn &&
@@ -92,23 +98,53 @@ export default {
       )
     },
   },
+  mounted() {
+    this.error = null
+  },
   mixins: ["something"],
   methods: {
         ...mapActions(useGlobalStore, [
       'doMoreTHINGS',
     ]),
+    //arrowTest: () => { 
+    //  console.log()
+    //},
+    // ^ this arrow function will throw a error and needs to be converted first. 
+    // scopeTest(dupItem) {
+    //  const ok = this.dupItem
+    //  console.log(dupItem)
+    //  this function should error and wont be able to be converted
+    // },
     async nextClickMethod() {
+      const innerArrow = () => 'someValue'
       this.doMoreTHINGS()
       this.$refs.something.lotsOfThings = true
       this.error = null
       this.nextLoading = true
+      this.$refs.anotherRef.values = true
+      this.$emit('another-object', this.error)
+      this.$emit('a-event', { ok: true })
       this.$emit('next')
+      this.$emit('set-config', {
+        config: this.selectedConfig,
+        insertionType: this.insertionType,
+      })
     },
-    async prevClickMethod() {
-      console.log(this.nextBtnText)
+    async prevClickMethod(someValue) {
+      this.$nextTick(() => {
+        nextClickMethod()
+      })
       this.error = null
       this.$emit('previous')
     },
   },
+  watch: {
+    getAppConfig(dupItem, oldVal) {
+      this.$emit('watch-emitter')
+      this.$emit('second-watch')
+      // const b = this._dupItem
+      // this._dupItem = oldVal
+    }
+  }
 }
 </script>
